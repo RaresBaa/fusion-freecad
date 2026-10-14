@@ -198,6 +198,19 @@ def revolve(sketch: str, angle: float = 360.0,
                        label=label, document=document)
 
 
+@mcp.tool()
+def press_pull(face: Annotated[str, Field(
+                   description="Flat face to move, e.g. 'Pad:Face6' (see get_topology)")],
+               distance: Annotated[float, Field(
+                   description="mm along the face's outward normal: positive adds "
+                               "material, negative cuts into the solid")],
+               label: str | None = None, document: Doc = None) -> dict[str, Any]:
+    """Push or pull a flat face of the solid (Fusion: Press Pull). The quickest way to
+    make a part thicker, extend a side, or recess a face, with no sketch needed."""
+    return client.call("press_pull", face=face, distance=distance, label=label,
+                       document=document)
+
+
 Edges = Annotated[list[str] | Literal["all"], Field(
     description="Edge names from get_topology, e.g. ['Edge1', 'Edge5'], or 'all'")]
 

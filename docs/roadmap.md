@@ -19,7 +19,8 @@
       H hole; in sketches R rectangle, D dimension, X construction, O offset;
       opt-in L line, C circle, P project (these take FreeCAD's sketcher keys)
 - [x] Stay in Fusion across FreeCAD's automatic workbench switches during edits
-- [ ] Q press/pull and S command search (need the smart tools below first)
+- [x] Q press/pull
+- [ ] S command search
 - [ ] Keep the Fusion toolbars visible while editing sketches (FreeCAD swaps in the
       Sketcher workbench's toolbars)
 - [ ] Fusion mouse navigation and a dark theme
@@ -38,7 +39,10 @@
 
 ## 4. Smart tools
 
-- [ ] Press/Pull: select a face, drag to pad or pocket depending on direction
+- [x] Press/Pull (Q): pick a flat face, type or scroll a distance, live preview;
+      positive pads, negative pockets; MCP tool `press_pull`
+- [ ] Press/Pull drag handle (an arrow in the 3D view, like Fusion's)
+- [ ] Press/Pull on cylindrical faces (change a hole or fillet radius)
 - [ ] Extrude straight from a selected face without opening a sketch
 - [ ] S-key command search popup
 

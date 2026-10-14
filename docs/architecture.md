@@ -20,6 +20,8 @@ FreeCAD uses only the standard library; everything MCP-specific lives in `mcp-se
 | `workbench.py` | Toolbar layout of the Fusion workbench |
 | `history.py` | Timeline model: body features, rollback marker (= body Tip), suppression. No Qt |
 | `timeline.py` | The timeline dock widget (Qt), drawn on top of `history.py` |
+| `presspull.py` | Press/Pull core: a Pad or Pocket with a face as its profile. No Qt |
+| `presspull_gui.py` | The Q task panel: pick a face, live distance preview, one undo step |
 | `shortcuts.py` | Fusion single-key shortcuts and restoring FreeCAD's originals |
 | `session.py` | "Fusion mode": keeps timeline and shortcuts alive across FreeCAD's automatic workbench switches |
 | `../InitGui.py` | Registers the workbench; at launch, auto-starts the bridge and cleans up stale shortcuts |
@@ -45,6 +47,16 @@ so rolling to a sketch puts the tip on the nearest solid feature before it.
 The widget repaints when a cheap signature of the active body (names, labels, states,
 tip, selection) changes, polled a few times a second while visible. That keeps it in
 sync with every source of change (tree, undo, Python, MCP) without document observers.
+
+## Press/Pull (`presspull.py`)
+
+PartDesign's Pad and Pocket accept a face of an earlier feature as their profile, so
+Press/Pull is just that: a Pad (positive distance, grows along the face normal) or a
+Pocket (negative, cuts into the solid), with no hidden sketch. While the panel is open
+the distance can change sign, which swaps Pad and Pocket; at zero the feature is
+removed. The whole interaction is one transaction, so Cancel leaves nothing behind.
+PartDesign's default Refine merges coplanar faces, so pushing a face keeps a clean
+solid.
 
 ## Shortcuts (`shortcuts.py`)
 

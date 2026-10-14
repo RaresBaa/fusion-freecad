@@ -128,4 +128,7 @@ def register():
     Gui.addCommand("FusionFreeCAD_ToggleTimeline", _ToggleTimeline())
     Gui.addCommand("FusionFreeCAD_ToggleShortcuts", _ToggleShortcuts())
     Gui.addCommand("FusionFreeCAD_ToggleSketcherOverride", _ToggleSketcherOverride())
+
+    from .presspull_gui import PressPullCommand
+    Gui.addCommand("FusionFreeCAD_PressPull", PressPullCommand())
     _registered = True

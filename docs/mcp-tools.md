@@ -36,6 +36,7 @@ names can change when earlier features change, so look them up again after edits
 | `pocket(sketch, length, through_all, reversed, midplane)` | Extrude (Cut) |
 | `revolve(sketch, angle, axis, groove)` | Revolve (Join or Cut) |
 | `fillet(edges, radius, base)` / `chamfer(edges, size, base)` | Fillet / Chamfer. `edges` can be `"all"` |
+| `press_pull(face, distance)` | Press Pull: move a flat face, e.g. `"Pad:Face6"`; positive adds, negative cuts |
 | `set_property(name, property, value)` | Edit feature, e.g. change a Pad's `Length` |
 | `delete_object(name)` | Delete |
 | `recompute`, `undo(steps)`, `redo(steps)` | |

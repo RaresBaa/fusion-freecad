@@ -24,6 +24,7 @@ PART_KEYS = {
     "E": "PartDesign_Pad",               # Extrude
     "F": "PartDesign_Fillet",
     "H": "PartDesign_Hole",
+    "Q": "FusionFreeCAD_PressPull",      # Press Pull
 }
 
 SKETCH_KEYS = {  # keys FreeCAD's sketcher doesn't use

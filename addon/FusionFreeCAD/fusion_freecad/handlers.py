@@ -624,6 +624,25 @@ def chamfer(doc, edges, size, base=None, label=None):
     return _finish(doc, feat, body)
 
 
+@_mutating("Press/Pull")
+def press_pull(doc, face, distance, label=None):
+    from .presspull import PressPull, PressPullError
+
+    obj_name, _, sub = face.partition(":")
+    if not sub:
+        raise HandlerError("face must look like 'Pad:Face6', got %r" % face)
+    if abs(float(distance)) < 1e-9:
+        raise HandlerError("distance must not be zero")
+    try:
+        op = PressPull(_obj(doc, obj_name), sub)
+    except PressPullError as e:
+        raise HandlerError(str(e))
+    op.set_distance(distance)
+    if label:
+        op.feature.Label = label
+    return _finish(doc, op.feature, op.body)
+
+
 @_mutating("Set property")
 def set_property(doc, name, property, value):
     obj = _obj(doc, name)
@@ -880,6 +899,7 @@ HANDLERS = {fn.__name__: fn for fn in [
     ping, list_documents, new_document, open_document, save_document, close_document,
     activate_document, list_objects, get_object, get_topology,
     create_body, create_sketch, add_sketch_geometry, pad, pocket, revolve, fillet, chamfer,
+    press_pull,
     set_property, delete_object, get_timeline, roll_timeline, suppress_feature,
     recompute, undo, redo,
     set_view, screenshot, export, import_file, run_python,

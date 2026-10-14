@@ -11,11 +11,12 @@ Status: early. Working today:
 - **Fusion workbench**: Fusion-style toolbars in one workspace.
 - **Timeline** at the bottom: drag the orange marker to roll back, double-click to edit,
   right-click to suppress or delete.
-- **Fusion keys**: E extrude, F fillet, H hole; in sketches R rectangle, D dimension,
+- **Press/Pull** (Q): pick a flat face, type a distance; positive adds, negative cuts.
+- **Fusion keys**: E extrude, F fillet, H hole, Q press/pull; in sketches R rectangle, D dimension,
   X construction, O offset. Optionally L line, C circle, P project (*Fusion* menu).
   They're only active while you're in the Fusion workbench.
 
-Press/Pull, command search and more are on the [roadmap](docs/roadmap.md).
+A 3D drag handle for Press/Pull, command search and more are on the [roadmap](docs/roadmap.md).
 
 ## What's here
 

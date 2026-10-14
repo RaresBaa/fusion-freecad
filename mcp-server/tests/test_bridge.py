@@ -141,6 +141,77 @@ def test_suppress_feature(freecad):
         freecad.call("suppress_feature", name="Sketch")
 
 
+def _face(freecad, feature, normal):
+    topo = freecad.call("get_topology", name=feature)
+    return "%s:%s" % (feature, next(f["name"] for f in topo["faces"]
+                                    if f.get("normal") == normal))
+
+
+def test_press_pull(freecad):
+    freecad.call("new_document", name="PressPull")
+    sk = freecad.call("create_sketch", geometry=[
+        {"type": "rectangle", "corner": [0, 0], "width": 20, "height": 10}])
+    base = freecad.call("pad", sketch=sk["sketch"], length=5)
+
+    pulled = freecad.call("press_pull", face=_face(freecad, base["feature"], [0, 0, 1]),
+                          distance=3)
+    assert "errors" not in pulled
+    assert pulled["shape"]["volume"] == pytest.approx(20 * 10 * 8)
+    assert pulled["shape"]["bound_box"]["max"][2] == pytest.approx(8)
+    # Refine merges the new block into the old one: still a plain box.
+    assert pulled["shape"]["faces"] == 6
+
+    pushed = freecad.call("press_pull", face=_face(freecad, pulled["feature"], [1, 0, 0]),
+                          distance=-4)
+    assert pushed["shape"]["volume"] == pytest.approx(16 * 10 * 8)
+
+    with pytest.raises(BridgeError, match="distance must not be zero"):
+        freecad.call("press_pull", face=_face(freecad, pushed["feature"], [1, 0, 0]),
+                     distance=0)
+
+
+def test_press_pull_rejects_curved_faces(freecad):
+    freecad.call("new_document", name="PressPullCurved")
+    sk = freecad.call("create_sketch", geometry=[{"type": "circle", "center": [0, 0],
+                                                   "radius": 5}])
+    cyl = freecad.call("pad", sketch=sk["sketch"], length=5)
+    topo = freecad.call("get_topology", name=cyl["feature"])
+    curved = next(f["name"] for f in topo["faces"] if f["surface"] == "Cylinder")
+    with pytest.raises(BridgeError, match="flat faces"):
+        freecad.call("press_pull", face="%s:%s" % (cyl["feature"], curved), distance=2)
+
+
+def test_press_pull_sign_flip_and_rollback(freecad):
+    """The live tool flips Pad <-> Pocket and must leave history intact."""
+    freecad.call("new_document", name="PressPullFlip")
+    pad_name, pocket_name, fillet_name = _plate_with_hole(freecad, "PressPullFlip2")
+    freecad.call("roll_timeline", to=pad_name)
+    out = freecad.call("run_python", code="""
+from fusion_freecad.presspull import PressPull
+from fusion_freecad import history
+pad = doc.getObject(%r)
+top = next("Face%%d" %% i for i, f in enumerate(pad.Shape.Faces, 1)
+           if f.Surface.__class__.__name__ == "Plane" and f.normalAt(0, 0).z > 0.99)
+op = PressPull(pad, top)
+seen = []
+for d in (2, -1, 0, 3):
+    op.set_distance(d)
+    doc.recompute()
+    seen.append((op.feature.TypeId if op.feature else None, op.body.Tip.Name))
+history.roll_to_end(op.body)
+doc.recompute()
+result = {"seen": seen, "order": [o.Name for o in op.body.Group], "new": op.feature.Name,
+          "invalid": [o.Name for o in doc.Objects if "Invalid" in o.State]}
+""" % pad_name)["result"]
+    types = [t for t, _ in out["seen"]]
+    assert types == ["PartDesign::Pad", "PartDesign::Pocket", None, "PartDesign::Pad"]
+    # At zero the feature is gone and the tip falls back to the original pad.
+    assert out["seen"][2][1] == pad_name
+    order = out["order"]
+    assert order.index(pad_name) < order.index(out["new"]) < order.index(pocket_name)
+    assert not out["invalid"]
+
+
 def test_run_python(freecad):
     out = freecad.call("run_python", code="print('hi')\nresult = {'n': len(App.listDocuments())}")
     assert out["stdout"] == "hi\n"
