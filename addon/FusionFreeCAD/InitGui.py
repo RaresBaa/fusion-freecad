@@ -29,9 +29,13 @@ class FusionWorkbench(FreeCADGui.Workbench):
         self.appendMenu("Fusion", commands.MENU)
 
     def Activated(self):
-        from fusion_freecad import session
+        from PySide import QtCore
+        from fusion_freecad import integrations, session
 
         session.enter()
+        # Once per session: pull in other add-ons' tools (fasteners, sheet metal...).
+        # Deferred because it switches workbenches, which can't happen mid-activation.
+        QtCore.QTimer.singleShot(0, lambda: integrations.load(self))
 
     def Deactivated(self):
         # Not the end of Fusion mode: FreeCAD also switches workbench to edit
@@ -46,9 +50,10 @@ FreeCADGui.addWorkbench(FusionWorkbench())
 
 
 def _fusion_freecad_autostart():
-    from fusion_freecad import bridge, commands, prefs, shortcuts
+    from fusion_freecad import bridge, commands, integrations, prefs, shortcuts
 
     commands.register()
+    integrations.apply_patches()
     # Undo Fusion shortcuts left behind if FreeCAD last quit inside the workbench.
     workbench = FreeCADGui.activeWorkbench()
     if workbench is None or workbench.name() != "FusionWorkbench":

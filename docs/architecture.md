@@ -22,6 +22,8 @@ FreeCAD uses only the standard library; everything MCP-specific lives in `mcp-se
 | `timeline.py` | The timeline dock widget (Qt), drawn on top of `history.py` |
 | `presspull.py` | Press/Pull core: a Pad or Pocket with a face as its profile. No Qt |
 | `presspull_gui.py` | The Q task panel: pick a face, live distance preview, one undo step |
+| `integrations.py` | Registry of other add-ons: their toolbar groups, loading them, compatibility patches |
+| `handlers_addons.py` | RPC handlers that drive those add-ons (fasteners, gears, sheet metal, any command) |
 | `shortcuts.py` | Fusion single-key shortcuts and restoring FreeCAD's originals |
 | `session.py` | "Fusion mode": keeps timeline and shortcuts alive across FreeCAD's automatic workbench switches |
 | `../InitGui.py` | Registers the workbench; at launch, auto-starts the bridge and cleans up stale shortcuts |
@@ -57,6 +59,24 @@ the distance can change sign, which swaps Pad and Pocket; at zero the feature is
 removed. The whole interaction is one transaction, so Cancel leaves nothing behind.
 PartDesign's default Refine merges coplanar faces, so pushing a face keeps a clean
 solid.
+
+## Other add-ons (`integrations.py`, `handlers_addons.py`)
+
+`addons.json` lists the add-ons we build on; `package.xml`, `flake.nix` and the
+`ADDONS` registry in `integrations.py` follow it (a test checks). An add-on's commands
+only exist after its workbench has been initialized, so the first activation of the
+Fusion workbench schedules `integrations.load()`: it activates each installed add-on's
+workbench inside `session.suspended()` (so Fusion mode doesn't end), appends our
+toolbar groups to the Fusion workbench, and activates Fusion again, which rebuilds the
+toolbars. MCP handlers call `ensure_command()` to do the same on demand.
+
+Most add-ons are built around GUI commands and task panels, so `handlers_addons.py`
+drives them like a user: select, `Gui.runCommand`, accept the task dialog, then set
+properties on the new object. That keeps us on their public behaviour rather than
+their internal Python APIs.
+
+Compatibility patches for add-on bugs live in `integrations.py` and are applied at
+startup; each checks that the bug is still present before patching.
 
 ## Shortcuts (`shortcuts.py`)
 

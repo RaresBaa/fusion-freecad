@@ -8,6 +8,23 @@
   <license>LGPL-2.1-or-later</license>
   <url type="repository" branch="main">https://github.com/RaresBaa/fusion-freecad</url>
   <icon>Resources/icons/workbench.svg</icon>
+  <!-- Add-ons we integrate with; the Addon Manager offers to install them.
+       Keep in sync with addons.json at the repo root. -->
+  <depend type="addon">SearchBar</depend>
+  <depend type="addon">fasteners</depend>
+  <depend type="addon">sheetmetal</depend>
+  <depend type="addon">freecad.gears</depend>
+  <depend type="addon">QuickMeasure</depend>
+  <depend type="addon" optional="true">ThreadProfile</depend>
+  <depend type="addon" optional="true">FusedFilamentDesign</depend>
+  <depend type="addon" optional="true">Gridfinity</depend>
+  <depend type="addon" optional="true">OpenTheme</depend>
+  <depend type="addon" optional="true">Curves</depend>
+  <depend type="addon" optional="true">Defeaturing</depend>
+  <depend type="addon" optional="true">Manipulator</depend>
+  <depend type="addon" optional="true">Render</depend>
+  <depend type="addon" optional="true">FreeCAD-Ribbon</depend>
+  <depend type="addon" optional="true">PieMenu</depend>
   <content>
     <workbench>
       <classname>FusionWorkbench</classname>

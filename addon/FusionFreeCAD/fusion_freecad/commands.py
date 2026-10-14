@@ -109,9 +109,33 @@ class _ToggleSketcherOverride:
         return True
 
 
+class _ShowToolbars:
+    """Some add-ons (FreeCAD Ribbon) hide the classic toolbars and save that; this
+    brings the Fusion workbench's toolbars back."""
+
+    def GetResources(self):
+        return {"MenuText": "Show all Fusion toolbars",
+                "ToolTip": "Make every toolbar of the Fusion workbench visible again"}
+
+    def Activated(self):
+        from PySide import QtWidgets
+
+        names = set(Gui.getWorkbench("FusionWorkbench").listToolbars())
+        stored = App.ParamGet("User parameter:BaseApp/MainWindow/Toolbars")
+        for name in names:
+            stored.SetBool(name, True)
+        for bar in Gui.getMainWindow().findChildren(QtWidgets.QToolBar):
+            if bar.objectName() in names:
+                bar.setVisible(True)
+
+    def IsActive(self):
+        return True
+
+
 BRIDGE_COMMANDS = ["FusionFreeCAD_StartBridge", "FusionFreeCAD_StopBridge"]
 MENU = ["FusionFreeCAD_ToggleTimeline", "FusionFreeCAD_ToggleShortcuts",
-        "FusionFreeCAD_ToggleSketcherOverride", "Separator",
+        "FusionFreeCAD_ToggleSketcherOverride", "FusionFreeCAD_ShowToolbars",
+        "Separator",
         "FusionFreeCAD_StartBridge", "FusionFreeCAD_StopBridge",
         "FusionFreeCAD_ToggleAutoStart"]
 
@@ -128,6 +152,7 @@ def register():
     Gui.addCommand("FusionFreeCAD_ToggleTimeline", _ToggleTimeline())
     Gui.addCommand("FusionFreeCAD_ToggleShortcuts", _ToggleShortcuts())
     Gui.addCommand("FusionFreeCAD_ToggleSketcherOverride", _ToggleSketcherOverride())
+    Gui.addCommand("FusionFreeCAD_ShowToolbars", _ShowToolbars())
 
     from .presspull_gui import PressPullCommand
     Gui.addCommand("FusionFreeCAD_PressPull", PressPullCommand())

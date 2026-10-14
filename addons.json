@@ -1,0 +1,20 @@
+{
+  "_comment": "Add-ons Fusion FreeCAD integrates with, pinned to commits tested with FreeCAD 1.1.4 (2026-10-14). 'set': required = always installed, recommended = installed by default, ui = opt-in (changes the whole interface). Keep in sync with addon/FusionFreeCAD/package.xml, fusion_freecad/integrations.py and flake.nix (mcp-server/tests/test_manifest.py checks this).",
+  "addons": [
+    {"name": "SearchBar", "set": "required", "url": "https://github.com/APEbbers/SearchBar", "rev": "c36a2ed17e2ba5572fb0af19c5c560084f42296a", "python": []},
+    {"name": "fasteners", "set": "required", "url": "https://github.com/shaise/FreeCAD_FastenersWB", "rev": "fddd07af422b7d3a69098b32333711c5eeae184c", "python": []},
+    {"name": "sheetmetal", "set": "required", "url": "https://github.com/shaise/FreeCAD_SheetMetal", "rev": "ca922534bc192e114014e49ca3192a66cd77107c", "python": ["networkx"]},
+    {"name": "freecad.gears", "set": "required", "url": "https://github.com/looooo/freecad.gears", "rev": "83ec154b1925347622b61812f75d2ed51e956b9f", "python": []},
+    {"name": "QuickMeasure", "set": "required", "url": "https://github.com/DanMiel/QuickMeasure", "rev": "ebbd4b2d7dd7f40ed7b30a30a14b4221400cd1e8", "python": []},
+    {"name": "ThreadProfile", "set": "recommended", "url": "https://github.com/mwganson/ThreadProfile", "rev": "2aa2e739c0f401d3addd28fd172d9f74c304aabc", "python": []},
+    {"name": "FusedFilamentDesign", "set": "recommended", "url": "https://github.com/rahix/FusedFilamentDesign", "rev": "870e5dbb6bf8d276b54f053ca95456836803796d", "python": []},
+    {"name": "Gridfinity", "set": "recommended", "url": "https://github.com/Stu142/FreeCAD-Gridfinity-Workbench", "rev": "6caeb02812bf3b389110c205c6fd48638353e957", "python": []},
+    {"name": "OpenTheme", "set": "recommended", "url": "https://github.com/obelisk79/OpenTheme", "rev": "de8a3a86ae6779993f07318557c18e7adf221dde", "python": []},
+    {"name": "Curves", "set": "recommended", "url": "https://github.com/tomate44/CurvesWB", "rev": "c08e21ba16b8d6c6846cee3c9a6b1ea950987f36", "python": ["numpy", "scipy"]},
+    {"name": "Defeaturing", "set": "recommended", "url": "https://github.com/easyw/Defeaturing_WB", "rev": "460cfdd02bddc622443b3dc78cc3ed2d31ccf0bd", "python": []},
+    {"name": "Manipulator", "set": "recommended", "url": "https://github.com/easyw/Manipulator", "rev": "6d8990469d1c1c2788c873af96ebecff2377833d", "python": []},
+    {"name": "Render", "set": "recommended", "url": "https://github.com/FreeCAD/FreeCAD-render", "rev": "08be2fe94b8a998323c8a5443f7f0afd0d05bed5", "python": []},
+    {"name": "FreeCAD-Ribbon", "set": "ui", "url": "https://github.com/APEbbers/FreeCAD-Ribbon", "rev": "3416a8a2e29763e3c3178cf09044e16aa94347c2", "python": []},
+    {"name": "PieMenu", "set": "ui", "url": "https://github.com/Grubuntu/PieMenu", "rev": "e95beb9ca7cb89cdd803b1e1e6aff222d87e11a8", "python": []}
+  ]
+}

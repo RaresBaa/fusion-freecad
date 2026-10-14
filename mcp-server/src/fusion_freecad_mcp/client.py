@@ -11,7 +11,10 @@ import os
 import socket
 from pathlib import Path
 
-from mcp.server.mcpserver.exceptions import ToolError
+try:  # mcp >= 2
+    from mcp.server.mcpserver.exceptions import ToolError
+except ImportError:  # mcp 1.x
+    from mcp.server.fastmcp.exceptions import ToolError
 
 CONNECT_TIMEOUT = 5.0
 CALL_TIMEOUT = 330.0  # a bit longer than the bridge's own 300 s limit

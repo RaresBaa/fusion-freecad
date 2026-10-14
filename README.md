@@ -15,8 +15,11 @@ Status: early. Working today:
 - **Fusion keys**: E extrude, F fillet, H hole, Q press/pull; in sketches R rectangle,
   D dimension, X construction, O offset. Optionally L line, C circle, P project (*Fusion* menu).
   They're only active while you're in the Fusion workbench.
+- **Add-ons built in**: screws and nuts (Fasteners), sheet metal with flat patterns,
+  gears, threads, 3D-printing helpers, live measurements and tool search, installed
+  automatically and tested together. See [docs/addons.md](docs/addons.md).
 
-A 3D drag handle for Press/Pull, command search and more are on the [roadmap](docs/roadmap.md).
+A 3D drag handle for Press/Pull and more are on the [roadmap](docs/roadmap.md).
 
 ## What's here
 
@@ -24,14 +27,18 @@ A 3D drag handle for Press/Pull, command search and more are on the [roadmap](do
 |---|---|
 | `addon/FusionFreeCAD/` | The FreeCAD addon: the **Fusion** workbench and the RPC bridge that runs inside FreeCAD |
 | `mcp-server/` | `fusion-freecad-mcp`, the MCP server agents talk to; it forwards calls to the bridge |
-| `scripts/` | Install scripts that link the addon into FreeCAD |
-| `docs/` | [Architecture](docs/architecture.md), [MCP tools](docs/mcp-tools.md), [development](docs/development.md), [roadmap](docs/roadmap.md) |
+| `addons.json` | The add-ons we integrate with, pinned to tested commits |
+| `scripts/` | Install scripts, and `check-addons.py` to test the add-on integrations |
+| `flake.nix` | NixOS / Home Manager packaging ([docs/nix.md](docs/nix.md), untested) |
+| `docs/` | [Architecture](docs/architecture.md), [MCP tools](docs/mcp-tools.md), [add-ons](docs/addons.md), [Nix](docs/nix.md), [development](docs/development.md), [roadmap](docs/roadmap.md) |
 
 ## Quick start
 
 Requires FreeCAD 1.0 or newer (developed on 1.1) and [uv](https://docs.astral.sh/uv/).
 
-1. **Install the addon** (links it into FreeCAD's Mod folder, so repo edits apply on restart):
+1. **Install the addon** (links it into FreeCAD's Mod folder, so repo edits apply on
+   restart, and installs the [add-ons](docs/addons.md) it uses at tested versions;
+   `-Addons minimal|all|none` / `--addons ...` to choose). On NixOS see [docs/nix.md](docs/nix.md).
 
    ```powershell
    # Windows

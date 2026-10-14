@@ -12,3 +12,5 @@ build/
 .idea/
 .DS_Store
 Thumbs.db
+result
+result-*

@@ -87,6 +87,21 @@ features are inserted at the marker.
 
 Typical use: roll back before a fillet, add a hole, then `roll_timeline(to="end")`.
 
+## Other add-ons (GUI only)
+
+These drive the add-ons in [addons.md](addons.md) and say so if one isn't installed.
+
+| Tool | Does |
+|---|---|
+| `list_addons` | Which add-ons are installed |
+| `insert_fastener(type, diameter, length, hole \| position)` | Standard screw, nut or washer (Fasteners). With `hole="Pocket:Edge14"` (a hole's circular edge) it's placed and sized for the hole. A wrong length lists the valid ones |
+| `create_gear(kind, teeth, module, height, position, in_body)` | Parametric gear: involute, internal, rack, bevel, worm, timing, cycloid, crown. A separate part unless `in_body` |
+| `sheet_metal_base(sketch, thickness, radius)` | Sheet metal plate from a closed sketch |
+| `sheet_metal_flange(edges, length, angle, radius)` | Bend a flange up along sheet edges |
+| `sheet_metal_unfold(face \| base)` | Flat pattern (export it with `export`) |
+| `list_commands(filter)` | Find any GUI command, e.g. `"teardrop"` |
+| `run_command(command, selection, accept_dialog)` | Run any command as if clicked, after selecting `selection`; returns what it created |
+
 ## View (GUI only)
 
 | Tool | Does |

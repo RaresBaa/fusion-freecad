@@ -20,7 +20,7 @@
       opt-in L line, C circle, P project (these take FreeCAD's sketcher keys)
 - [x] Stay in Fusion across FreeCAD's automatic workbench switches during edits
 - [x] Q press/pull
-- [ ] S command search
+- [x] Command search (SearchBar add-on)
 - [ ] Keep the Fusion toolbars visible while editing sketches (FreeCAD swaps in the
       Sketcher workbench's toolbars)
 - [ ] Fusion mouse navigation and a dark theme
@@ -43,7 +43,18 @@
       positive pads, negative pockets; MCP tool `press_pull`
 - [ ] Press/Pull drag handle (an arrow in the 3D view, like Fusion's)
 - [ ] Press/Pull on cylindrical faces (change a hole or fillet radius)
-- [ ] S-key command search popup
+
+## 5. Add-ons
+
+- [x] Tested 15 add-ons with FreeCAD 1.1; pinned in `addons.json`, installed by the
+      scripts, the Addon Manager and the Nix flake
+- [x] Fusion toolbars for Fasteners, SheetMetal, Gears, ThreadProfile, QuickMeasure,
+      FusedFilamentDesign, Gridfinity; MCP tools for fasteners, gears, sheet metal and
+      any command
+- [x] Patch for SearchBar's FreeCAD 1.1 crash (drop when upstream #47 is fixed)
+- [ ] Bind S to SearchBar's search-at-cursor (MouseBar)
+- [ ] Sheet metal flat pattern export to DXF as a tool
+- [ ] Test the Nix flake on NixOS
 
 ## Open questions
 

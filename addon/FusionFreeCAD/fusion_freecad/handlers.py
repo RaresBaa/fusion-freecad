@@ -904,3 +904,11 @@ HANDLERS = {fn.__name__: fn for fn in [
     recompute, undo, redo,
     set_view, screenshot, export, import_file, run_python,
 ]}
+
+
+def _addon_handlers():
+    from . import handlers_addons
+    return handlers_addons.HANDLERS
+
+
+HANDLERS.update(_addon_handlers())

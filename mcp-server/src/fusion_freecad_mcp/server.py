@@ -7,7 +7,10 @@ the real work happens in addon/FusionFreeCAD/fusion_freecad/handlers.py.
 import base64
 from typing import Annotated, Any, Literal
 
-from mcp.server.mcpserver import Image, MCPServer
+try:  # mcp >= 2
+    from mcp.server.mcpserver import Image, MCPServer
+except ImportError:  # mcp 1.x (e.g. older nixpkgs)
+    from mcp.server.fastmcp import FastMCP as MCPServer, Image
 from pydantic import Field
 
 from .client import FreeCADClient
@@ -302,6 +305,106 @@ def undo(steps: int = 1, document: Doc = None) -> dict[str, Any]:
 def redo(steps: int = 1, document: Doc = None) -> dict[str, Any]:
     """Redo undone steps."""
     return client.call("redo", steps=steps, document=document)
+
+
+# --- other add-ons (need the FreeCAD GUI) ----------------------------------------
+
+@mcp.tool()
+def list_addons() -> dict[str, Any]:
+    """Which supporting add-ons (Fasteners, SheetMetal, Gears, ...) are installed."""
+    return client.call("list_addons")
+
+
+@mcp.tool()
+def insert_fastener(
+    type: Annotated[str, Field(
+        description="Fasteners standard: ISO4762 socket cap, ISO7380-1 button head, "
+                    "ISO10642 countersunk, ISO4017 hex screw, ISO4032 nut, ISO7089 "
+                    "washer, ... (any FS<type> command of the Fasteners add-on)")] = "ISO4762",
+    diameter: Annotated[str | None, Field(description="e.g. 'M4'; default matches the hole")] = None,
+    length: Annotated[float | None, Field(description="Screw length in mm (standard sizes)")] = None,
+    hole: Annotated[str | None, Field(
+        description="Circular edge of a hole to seat it in, e.g. 'Pocket:Edge14' "
+                    "(get_topology); the fastener is placed and sized for it")] = None,
+    position: Annotated[list[float] | None, Field(description="[x, y, z] when no hole")] = None,
+    invert: bool = False,
+    document: Doc = None,
+) -> dict[str, Any]:
+    """Insert a standard screw, nut or washer (Fusion: Insert > McMaster-Carr)."""
+    return client.call("insert_fastener", type=type, diameter=diameter, length=length,
+                       hole=hole, position=position, invert=invert, document=document)
+
+
+@mcp.tool()
+def create_gear(kind: Literal["involute", "internal", "rack", "bevel", "worm", "timing",
+                              "cycloid", "crown"] = "involute",
+                teeth: int | None = None,
+                module: Annotated[float | None, Field(description="Gear module in mm")] = None,
+                height: Annotated[float | None, Field(description="Face width in mm")] = None,
+                position: list[float] | None = None,
+                in_body: Annotated[bool, Field(
+                    description="Add to the active PartDesign body instead of creating "
+                                "a separate part")] = False,
+                document: Doc = None) -> dict[str, Any]:
+    """Create a parametric gear (Gears add-on), as its own part by default."""
+    return client.call("create_gear", kind=kind, teeth=teeth, module=module, height=height,
+                       position=position, in_body=in_body, document=document)
+
+
+@mcp.tool()
+def sheet_metal_base(sketch: str, thickness: float | None = None,
+                     radius: Annotated[float | None, Field(description="Bend radius")] = None,
+                     document: Doc = None) -> dict[str, Any]:
+    """Turn a closed sketch into a sheet metal base plate (SheetMetal add-on)."""
+    return client.call("sheet_metal_base", sketch=sketch, thickness=thickness,
+                       radius=radius, document=document)
+
+
+@mcp.tool()
+def sheet_metal_flange(edges: Annotated[list[str], Field(
+                           description="Edges of the sheet to bend up, e.g. ['BaseBend:Edge4']")],
+                       length: float | None = None,
+                       angle: Annotated[float | None, Field(description="Degrees")] = None,
+                       radius: float | None = None,
+                       document: Doc = None) -> dict[str, Any]:
+    """Add a bent flange (wall) along sheet metal edges (Fusion: Flange)."""
+    return client.call("sheet_metal_flange", edges=edges, length=length, angle=angle,
+                       radius=radius, document=document)
+
+
+@mcp.tool()
+def sheet_metal_unfold(face: Annotated[str | None, Field(
+                           description="Face that stays fixed, e.g. 'Bend:Face3'")] = None,
+                       base: Annotated[str | None, Field(
+                           description="Or: the sheet metal feature; its largest flat "
+                                       "face is used")] = None,
+                       document: Doc = None) -> dict[str, Any]:
+    """Create the flat pattern of a sheet metal part (Fusion: Create Flat Pattern).
+    Export it with export(path='....step', objects=[flat_pattern])."""
+    return client.call("sheet_metal_unfold", face=face, base=base, document=document)
+
+
+@mcp.tool()
+def list_commands(filter: Annotated[str, Field(
+                      description="Text to search in command names and menu text")] = "",
+                  limit: int = 100) -> dict[str, Any]:
+    """Find FreeCAD GUI commands, including other add-ons' tools, for run_command."""
+    return client.call("list_commands", filter=filter, limit=limit)
+
+
+@mcp.tool()
+def run_command(command: str,
+                selection: Annotated[list[str] | None, Field(
+                    description="Objects or sub-elements to select first, e.g. "
+                                "['Pad', 'Pad:Face6']")] = None,
+                accept_dialog: Annotated[bool, Field(
+                    description="Press OK on the task panel the command opens")] = True,
+                document: Doc = None) -> dict[str, Any]:
+    """Run any FreeCAD GUI command (any workbench or add-on) as if clicked in the UI,
+    after selecting the given objects. Returns the objects it created. Use set_property
+    afterwards to adjust them. Prefer a dedicated tool when there is one."""
+    return client.call("run_command", command=command, selection=selection,
+                       accept_dialog=accept_dialog, document=document)
 
 
 # --- view --------------------------------------------------------------------

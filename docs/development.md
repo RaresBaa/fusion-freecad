@@ -38,6 +38,22 @@ FreeCAD with the bridge and use the client directly:
 uv run python -c "from fusion_freecad_mcp.client import FreeCADClient; print(FreeCADClient().call('ping'))"
 ```
 
+## Testing with other add-ons, without touching your FreeCAD setup
+
+FreeCAD honours `FREECAD_USER_HOME`: point it at an empty folder to get a throwaway
+profile (its own `Mod`, settings and `AdditionalPythonPackages`). Combined with
+`FUSION_FREECAD_RPC_FILE` the bridge doesn't clash with your normal FreeCAD:
+
+```sh
+export FREECAD_USER_HOME=/tmp/fc-test FUSION_FREECAD_RPC_FILE=/tmp/fc-test/rpc.json
+scripts/install-addon.sh --addons all /tmp/fc-test/Mod
+freecad   # then Fusion workbench -> Start MCP bridge
+cd mcp-server && uv run python ../scripts/check-addons.py
+```
+
+A fresh profile shows FreeCAD's first-run dialogs (and Ribbon's, if installed); they
+block startup scripts until answered.
+
 ## Gotchas
 
 - `InitGui.py` is run by FreeCAD with `exec()`, so `__file__` is undefined there. Put
@@ -55,6 +71,11 @@ uv run python -c "from fusion_freecad_mcp.client import FreeCADClient; print(Fre
 - FreeCAD 1.1 sketcher single-key shortcuts: A H/V, C coincident, E equal, H horizontal,
   I vertical distance, L horizontal distance, N perpendicular, P parallel, S symmetric,
   T tangent, V vertical, W move. Digits 0-6 are standard views.
+- An add-on's commands exist only after its workbench was initialized (activated
+  once). `integrations.ensure_command()` handles that.
+- Add-ons that create PartDesign-aware objects (Gears, SheetMetal) put them into the
+  *active body*. Clear `view.setActiveObject("pdbody", None)` first if that's unwanted.
+- Screenshots and offscreen renders come out blank while the Windows session is locked.
 - GUI checks: `Gui.getMainWindow().grab()` shows widgets but not the 3D view (OpenGL);
   use the `screenshot` handler for the model. `PySide6.QtTest.QTest` can simulate key
   presses and mouse drags through `run_python`.

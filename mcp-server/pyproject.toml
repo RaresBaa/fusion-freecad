@@ -6,7 +6,7 @@ readme = "README.md"
 requires-python = ">=3.10"
 license = "LGPL-2.1-or-later"
 authors = [{ name = "RaresBaa" }]
-dependencies = ["mcp>=2.3,<3"]
+dependencies = ["mcp>=1.9,<3"]
 
 [project.scripts]
 fusion-freecad-mcp = "fusion_freecad_mcp.server:main"

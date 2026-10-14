@@ -14,6 +14,8 @@ A short poll is used because the edit state isn't settled yet when FreeCAD calls
 Workbench.Deactivated().
 """
 
+import contextlib
+
 import FreeCADGui as Gui
 from PySide import QtCore
 
@@ -25,6 +27,18 @@ POLL_MS = 250
 
 _timer = None
 _excursion = False
+_suspended = 0
+
+
+@contextlib.contextmanager
+def suspended():
+    """Switch workbenches on purpose (e.g. to load an add-on) without ending Fusion mode."""
+    global _suspended
+    _suspended += 1
+    try:
+        yield
+    finally:
+        _suspended -= 1
 
 
 def _editing():
@@ -43,6 +57,8 @@ def _sketch_in_edit():
 def enter():
     """Called when the Fusion workbench is activated."""
     global _timer, _excursion
+    if _suspended:
+        return
     _excursion = False
     shortcuts.apply()
     if prefs().GetBool("ShowTimeline", True):
@@ -64,6 +80,8 @@ def leave():
 
 def _tick():
     global _excursion
+    if _suspended:
+        return
     wb = Gui.activeWorkbench()
     name = wb.name() if wb is not None else None
 
