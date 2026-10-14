@@ -1,13 +1,56 @@
 # fusion-freecad
 
-A FreeCAD addon that brings a Fusion 360–style workflow to FreeCAD (Linux & Windows), plus an MCP server so AI agents like Claude can drive FreeCAD.
+A FreeCAD addon that brings a Fusion 360-style workflow to FreeCAD on Linux and
+Windows, plus an MCP server so AI agents such as Claude Code can model parts in a
+live FreeCAD session.
 
-## Planned
+Status: early. The MCP bridge works end to end. The workbench currently gives you a
+single Fusion-style toolbar layout; the timeline, Press/Pull and the rest are on the
+[roadmap](docs/roadmap.md).
 
-- **MCP server**: an in-FreeCAD RPC server plus an external MCP server (sketch, extrude, fillet, list features, screenshot, export, run Python)
-- **Unified workbench**: Sketcher, Part Design and Assembly tools in one tabbed toolbar
-- **Timeline**: a Fusion-style feature history bar
-- **Smart tools**: Press/Pull, S-key command search, Fusion keyboard shortcuts and navigation
-- **Theme**: a dark, Fusion-like look
+## What's here
 
-Requires FreeCAD 1.x.
+| Path | What it is |
+|---|---|
+| `addon/FusionFreeCAD/` | The FreeCAD addon: the **Fusion** workbench and the RPC bridge that runs inside FreeCAD |
+| `mcp-server/` | `fusion-freecad-mcp`, the MCP server agents talk to; it forwards calls to the bridge |
+| `scripts/` | Install scripts that link the addon into FreeCAD |
+| `docs/` | [Architecture](docs/architecture.md), [MCP tools](docs/mcp-tools.md), [development](docs/development.md), [roadmap](docs/roadmap.md) |
+
+## Quick start
+
+Requires FreeCAD 1.0 or newer (developed on 1.1) and [uv](https://docs.astral.sh/uv/).
+
+1. **Install the addon** (links it into FreeCAD's Mod folder, so repo edits apply on restart):
+
+   ```powershell
+   # Windows
+   powershell -ExecutionPolicy Bypass -File scripts\install-addon.ps1
+   ```
+   ```sh
+   # Linux / macOS
+   scripts/install-addon.sh
+   ```
+
+2. **Start the bridge.** Restart FreeCAD, pick the **Fusion** workbench and press the
+   green **Start MCP bridge** button. To have it start with FreeCAD, tick
+   *Fusion → Start MCP bridge with FreeCAD*.
+
+3. **Connect Claude Code.** Opening Claude Code in this repo picks up `.mcp.json`
+   automatically (approve the `freecad` server when asked). To use it from anywhere:
+
+   ```sh
+   claude mcp add --scope user freecad -- uv --directory <path-to-repo>/mcp-server run fusion-freecad-mcp
+   ```
+
+4. Ask for a part, for example: *"Make a 60x30x6 mm mounting plate with four M4
+   clearance holes 5 mm from the corners and 2 mm rounded corners, then export it as
+   STEP."* Every tool call is one undo step in FreeCAD, so Ctrl+Z works as expected.
+
+## Security
+
+The bridge listens on `127.0.0.1` only and requires a random token that changes every
+time it starts. The token is stored in `~/.fusion-freecad/rpc.json`, which only your
+user can read. The `run_python` tool runs arbitrary Python inside FreeCAD, so any
+program that can read that file can control FreeCAD. Stop the bridge when you're not
+using it if that matters to you.

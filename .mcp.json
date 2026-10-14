@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "freecad": {
+      "command": "uv",
+      "args": ["--directory", "mcp-server", "run", "fusion-freecad-mcp"]
+    }
+  }
+}

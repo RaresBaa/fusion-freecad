@@ -1,0 +1,22 @@
+[project]
+name = "fusion-freecad-mcp"
+version = "0.1.0"
+description = "MCP server that lets AI agents drive FreeCAD through the Fusion FreeCAD bridge"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "LGPL-2.1-or-later"
+authors = [{ name = "RaresBaa" }]
+dependencies = ["mcp>=2.3,<3"]
+
+[project.scripts]
+fusion-freecad-mcp = "fusion_freecad_mcp.server:main"
+
+[dependency-groups]
+dev = ["pytest>=8"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

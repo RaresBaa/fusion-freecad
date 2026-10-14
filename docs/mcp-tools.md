@@ -1,0 +1,93 @@
+# MCP tools
+
+All lengths are millimetres and all angles degrees. `document` is optional on every
+tool and defaults to the active document. Objects can be named by internal name
+(`Pad001`) or label. Each modelling tool is a single undo step in FreeCAD.
+
+## Session and documents
+
+| Tool | Does |
+|---|---|
+| `freecad_status` | Version, GUI vs headless, active document. Good first call |
+| `list_documents` | Open documents |
+| `new_document(name)` | Create a document and make it active |
+| `open_document(path)` / `save_document(path?)` / `close_document(document)` | File handling for `.FCStd` |
+| `activate_document(document)` | Switch the active document |
+
+## Inspection
+
+| Tool | Does |
+|---|---|
+| `list_objects` | Every object: name, label, type, owning body, validity |
+| `get_object(name)` | Properties and shape summary; for sketches also geometry and constraints |
+| `get_topology(name)` | Faces (type, area, centre, normal) and edges (type, length, endpoints/radius) |
+
+Use `get_topology` to choose a face to sketch on or edges to fillet. Face and edge
+names can change when earlier features change, so look them up again after edits.
+
+## Modelling
+
+| Tool | Fusion equivalent |
+|---|---|
+| `create_body(label)` | New component / body |
+| `create_sketch(geometry, plane \| face, offset, constraints)` | Create Sketch |
+| `add_sketch_geometry(sketch, geometry, constraints)` | Edit sketch |
+| `pad(sketch, length, reversed, midplane, up_to_face)` | Extrude (Join) |
+| `pocket(sketch, length, through_all, reversed, midplane)` | Extrude (Cut) |
+| `revolve(sketch, angle, axis, groove)` | Revolve (Join or Cut) |
+| `fillet(edges, radius, base)` / `chamfer(edges, size, base)` | Fillet / Chamfer. `edges` can be `"all"` |
+| `set_property(name, property, value)` | Edit feature, e.g. change a Pad's `Length` |
+| `delete_object(name)` | Delete |
+| `recompute`, `undo(steps)`, `redo(steps)` | |
+
+### Sketch geometry
+
+```json
+[
+  {"type": "rectangle", "center": [0, 0], "width": 40, "height": 20},
+  {"type": "rectangle", "corner": [0, 0], "width": 40, "height": 20},
+  {"type": "circle", "center": [12, 0], "radius": 2},
+  {"type": "line", "start": [0, 0], "end": [10, 5]},
+  {"type": "arc", "center": [0, 0], "radius": 5, "start_angle": 0, "end_angle": 90},
+  {"type": "polygon", "points": [[0, 0], [10, 0], [5, 8]]}
+]
+```
+
+Any item can have `"construction": true`. Rectangles get width/height dimensions and
+circles a diameter dimension, so you can edit them later in FreeCAD; pass
+`"dimensioned": false` to skip that. The result's `geometry_indices` lists, per item,
+the sketch geometry indices it created (a rectangle creates four lines).
+
+### Sketch constraints
+
+Passed straight to `Sketcher.Constraint(type, *args)`. Point positions: 1 = start,
+2 = end, 3 = centre. Geometry `-1` is the sketch X axis, `-2` the Y axis, and point
+`(-1, 1)` is the origin.
+
+```json
+[
+  {"type": "Coincident", "args": [0, 1, -1, 1]},
+  {"type": "Distance", "args": [4, 10.0]},
+  {"type": "Symmetric", "args": [0, 1, 0, 2, -1, 1]}
+]
+```
+
+## View (GUI only)
+
+| Tool | Does |
+|---|---|
+| `set_view(view, fit)` | `isometric`, `front`, `back`, `top`, `bottom`, `left`, `right` |
+| `screenshot(view, width, height, fit)` | Returns a PNG image the agent can look at |
+
+## Files
+
+| Tool | Does |
+|---|---|
+| `export(path, objects?)` | `.step/.stp`, `.iges/.igs`, `.stl`, `.obj`, `.brep`, `.FCStd` (copy). Defaults to all bodies |
+| `import_file(path)` | STEP, IGES, BREP, STL, OBJ |
+
+## Escape hatch
+
+`run_python(code)` runs Python inside FreeCAD with `App`, `Gui` (None when headless)
+and `doc` predefined. Assign to `result` to return a value; printed output comes back
+as `stdout`. It runs as one undo step.
