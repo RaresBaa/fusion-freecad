@@ -26,12 +26,16 @@ class FusionWorkbench(FreeCADGui.Workbench):
             if cmds:
                 self.appendToolbar(name, cmds)
         self.appendToolbar("MCP", commands.BRIDGE_COMMANDS)
-        self.appendMenu("Fusion", commands.BRIDGE_MENU)
+        self.appendMenu("Fusion", commands.MENU)
 
     def Activated(self):
-        pass
+        from fusion_freecad import session
+
+        session.enter()
 
     def Deactivated(self):
+        # Not the end of Fusion mode: FreeCAD also switches workbench to edit
+        # sketches and features. session.py decides when Fusion mode really ends.
         pass
 
     def GetClassName(self):
@@ -42,9 +46,13 @@ FreeCADGui.addWorkbench(FusionWorkbench())
 
 
 def _fusion_freecad_autostart():
-    from fusion_freecad import bridge, commands, prefs
+    from fusion_freecad import bridge, commands, prefs, shortcuts
 
     commands.register()
+    # Undo Fusion shortcuts left behind if FreeCAD last quit inside the workbench.
+    workbench = FreeCADGui.activeWorkbench()
+    if workbench is None or workbench.name() != "FusionWorkbench":
+        shortcuts.restore()
     if prefs().GetBool("AutoStartServer", False):
         bridge.start()
 

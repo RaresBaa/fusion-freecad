@@ -15,17 +15,26 @@
 
 - [x] One workbench with Fusion-style toolbars (Sketch / Create / Modify / Pattern /
       Construct / Inspect) built from PartDesign commands
-- [ ] Fusion keyboard shortcuts (L line, C circle, R rectangle, D dimension, E extrude,
-      F fillet, Q press/pull, S search) as a switchable profile
+- [x] Fusion keyboard shortcuts, active only in Fusion mode: E extrude, F fillet,
+      H hole; in sketches R rectangle, D dimension, X construction, O offset;
+      opt-in L line, C circle, P project (these take FreeCAD's sketcher keys)
+- [x] Stay in Fusion across FreeCAD's automatic workbench switches during edits
+- [ ] Q press/pull and S command search (need the smart tools below first)
+- [ ] Keep the Fusion toolbars visible while editing sketches (FreeCAD swaps in the
+      Sketcher workbench's toolbars)
 - [ ] Fusion mouse navigation and a dark theme
 - [ ] Ribbon-style tabs (evaluate the community Ribbon UI addon vs our own)
 
 ## 3. Timeline
 
-- [ ] Dock widget at the bottom showing the active body's features as icons
-- [ ] Double-click to edit, drag the marker to roll back (move the body Tip),
-      right-click to suppress/delete
-- [ ] Keep it in sync with document changes (observer)
+- [x] Dock widget at the bottom showing the active body's features as icons
+- [x] Drag the marker or use the playback buttons to roll back (moves the body Tip);
+      double-click to edit; right-click to edit, roll back, suppress or delete
+- [x] Rolled-back features faded, suppressed struck through, failing outlined red
+- [x] Stays in sync with every kind of change; MCP tools for the agent
+- [ ] Drag features to reorder them
+- [ ] Group sketches with the feature that uses them (Fusion shows them separately,
+      but it would make long timelines shorter)
 
 ## 4. Smart tools
 

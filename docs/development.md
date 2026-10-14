@@ -47,3 +47,14 @@ uv run python -c "from fusion_freecad_mcp.client import FreeCADClient; print(Fre
 - `PartDesign::Pad`'s `TwoLengths` mode shows up as `?TwoLengths` in 1.1's enum list,
   so it isn't exposed yet.
 - The MCP SDK is 2.x: `from mcp.server.mcpserver import MCPServer` (FastMCP was renamed).
+  Only `ToolError` messages reach the agent; other exceptions show as "Error executing tool".
+- FreeCAD switches workbench during edits (Sketcher for sketches, PartDesign for feature
+  dialogs). Don't treat `Workbench.Deactivated()` as "user left"; see `session.py`.
+- Sketcher tool actions (and so their shortcuts) only exist after a sketch has been
+  opened once; `Gui.Command.get(...).getShortcut()` returns "" for them before that.
+- FreeCAD 1.1 sketcher single-key shortcuts: A H/V, C coincident, E equal, H horizontal,
+  I vertical distance, L horizontal distance, N perpendicular, P parallel, S symmetric,
+  T tangent, V vertical, W move. Digits 0-6 are standard views.
+- GUI checks: `Gui.getMainWindow().grab()` shows widgets but not the 3D view (OpenGL);
+  use the `screenshot` handler for the model. `PySide6.QtTest.QTest` can simulate key
+  presses and mouse drags through `run_python`.

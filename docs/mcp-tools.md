@@ -72,6 +72,20 @@ Passed straight to `Sketcher.Constraint(type, *args)`. Point positions: 1 = star
 ]
 ```
 
+## Timeline
+
+The body's feature history, like Fusion's timeline. The rollback marker sits right
+after the body's tip; features after it are excluded from the model, and new
+features are inserted at the marker.
+
+| Tool | Does |
+|---|---|
+| `get_timeline(body?)` | Entries in order: kind (sketch/feature/datum), rolled back, suppressed, failed |
+| `roll_timeline(to \| steps)` | `to`: feature name, `"start"` or `"end"`; `steps`: move by N solid features (negative = back) |
+| `suppress_feature(name, suppressed)` | Disable a feature without deleting it |
+
+Typical use: roll back before a fillet, add a hole, then `roll_timeline(to="end")`.
+
 ## View (GUI only)
 
 | Tool | Does |

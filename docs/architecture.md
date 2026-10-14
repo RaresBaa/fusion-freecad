@@ -16,9 +16,45 @@ FreeCAD uses only the standard library; everything MCP-specific lives in `mcp-se
 | `rpc.py` | TCP server, auth, request queue. No FreeCAD imports, so it is easy to reason about |
 | `handlers.py` | The operations (sketch, pad, fillet, export, ...). This is where CAD logic goes |
 | `bridge.py` | Starts/stops the server in the GUI, or runs it headless for tests |
-| `commands.py` | FreeCAD GUI commands (start/stop bridge, auto-start toggle) |
+| `commands.py` | FreeCAD GUI commands (bridge, timeline and shortcut toggles) |
 | `workbench.py` | Toolbar layout of the Fusion workbench |
-| `../InitGui.py` | Registers the workbench and runs auto-start at FreeCAD launch |
+| `history.py` | Timeline model: body features, rollback marker (= body Tip), suppression. No Qt |
+| `timeline.py` | The timeline dock widget (Qt), drawn on top of `history.py` |
+| `shortcuts.py` | Fusion single-key shortcuts and restoring FreeCAD's originals |
+| `session.py` | "Fusion mode": keeps timeline and shortcuts alive across FreeCAD's automatic workbench switches |
+| `../InitGui.py` | Registers the workbench; at launch, auto-starts the bridge and cleans up stale shortcuts |
+
+## Fusion mode (`session.py`)
+
+FreeCAD switches workbench by itself during edits: opening a sketch activates the
+Sketcher workbench, and PartDesign feature dialogs activate PartDesign. So
+`Workbench.Deactivated()` doesn't mean the user left. Instead, `session.py` polls the
+active workbench every 250 ms while in Fusion mode:
+
+- Sketcher/PartDesign while something is being edited: an excursion. Keep the
+  timeline and keys, and switch back to Fusion when the edit ends.
+- Anything else: the user left on purpose. Hide the timeline and restore shortcuts.
+
+## Timeline (`history.py`, `timeline.py`)
+
+The timeline is the body's `Group` in order. The marker is the body's `Tip`: PartDesign
+already excludes features after the tip from the body's shape and inserts new features
+right after it, which is exactly Fusion's rollback. Only solid features can be the tip,
+so rolling to a sketch puts the tip on the nearest solid feature before it.
+
+The widget repaints when a cheap signature of the active body (names, labels, states,
+tip, selection) changes, polled a few times a second while visible. That keeps it in
+sync with every source of change (tree, undo, Python, MCP) without document observers.
+
+## Shortcuts (`shortcuts.py`)
+
+FreeCAD shortcuts are global and persisted, so Fusion keys are bound when Fusion mode
+starts and the previous shortcuts are restored when it ends. The originals are stored
+in preferences (`SavedShortcuts`), so a FreeCAD that quits in Fusion mode is cleaned up
+on the next launch. Sketcher tool actions only exist once a sketch has been opened, so
+sketch keys are bound from inside the sketcher. FreeCAD's sketcher uses many single
+letters for constraints; part keys (E, F, H) coexist with them because each set is only
+enabled in its own context. Fusion's clashing sketch keys (L, C, P) are opt-in.
 
 ### Threading
 

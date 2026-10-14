@@ -4,9 +4,18 @@ A FreeCAD addon that brings a Fusion 360-style workflow to FreeCAD on Linux and
 Windows, plus an MCP server so AI agents such as Claude Code can model parts in a
 live FreeCAD session.
 
-Status: early. The MCP bridge works end to end. The workbench currently gives you a
-single Fusion-style toolbar layout; the timeline, Press/Pull and the rest are on the
-[roadmap](docs/roadmap.md).
+Status: early. Working today:
+
+- **MCP bridge**: agents can sketch, extrude, cut, revolve, fillet, roll the timeline
+  back, take screenshots and export, in a live FreeCAD.
+- **Fusion workbench**: Fusion-style toolbars in one workspace.
+- **Timeline** at the bottom: drag the orange marker to roll back, double-click to edit,
+  right-click to suppress or delete.
+- **Fusion keys**: E extrude, F fillet, H hole; in sketches R rectangle, D dimension,
+  X construction, O offset. Optionally L line, C circle, P project (*Fusion* menu).
+  They're only active while you're in the Fusion workbench.
+
+Press/Pull, command search and more are on the [roadmap](docs/roadmap.md).
 
 ## What's here
 

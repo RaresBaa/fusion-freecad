@@ -236,6 +236,43 @@ def delete_object(name: str, document: Doc = None) -> dict[str, Any]:
     return client.call("delete_object", name=name, document=document)
 
 
+# --- timeline ----------------------------------------------------------------
+
+Body = Annotated[str | None, Field(
+    description="Body whose timeline to use; defaults to the active body")]
+
+
+@mcp.tool()
+def get_timeline(body: Body = None, document: Doc = None) -> dict[str, Any]:
+    """The body's feature history in order, Fusion-timeline style: each entry's kind
+    (sketch/feature/datum), whether it is rolled back, suppressed or failing, and where
+    the rollback marker is (right after the tip feature)."""
+    return client.call("get_timeline", body=body, document=document)
+
+
+@mcp.tool()
+def roll_timeline(to: Annotated[str | None, Field(
+                      description="Feature name to roll to (marker goes right after it), "
+                                  "or 'start' / 'end'")] = None,
+                  steps: Annotated[int | None, Field(
+                      description="Instead of to: move the marker by this many solid "
+                                  "features; negative goes back")] = None,
+                  body: Body = None, document: Doc = None) -> dict[str, Any]:
+    """Move the timeline marker (Fusion: drag the rollback marker). Features after it are
+    temporarily excluded from the model, and new features are inserted at the marker,
+    so rolling back lets you add something earlier in the history. Roll to 'end'
+    afterwards."""
+    return client.call("roll_timeline", to=to, steps=steps, body=body, document=document)
+
+
+@mcp.tool()
+def suppress_feature(name: str, suppressed: bool = True,
+                     document: Doc = None) -> dict[str, Any]:
+    """Suppress (temporarily disable) or unsuppress a feature without deleting it."""
+    return client.call("suppress_feature", name=name, suppressed=suppressed,
+                       document=document)
+
+
 @mcp.tool()
 def recompute(document: Doc = None) -> dict[str, Any]:
     """Recompute the document and report objects that failed."""

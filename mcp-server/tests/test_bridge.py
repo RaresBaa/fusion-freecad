@@ -82,6 +82,65 @@ def test_set_property_recomputes(freecad):
     assert info["shape"]["volume"] == pytest.approx(math.pi * 25 * 20, rel=1e-6)
 
 
+def _plate_with_hole(freecad, name):
+    """Pad (40x20x5) -> Pocket (through hole) -> Fillet; returns the feature names."""
+    freecad.call("new_document", name=name)
+    sk = freecad.call("create_sketch", geometry=[
+        {"type": "rectangle", "center": [0, 0], "width": 40, "height": 20}])
+    base = freecad.call("pad", sketch=sk["sketch"], length=5)
+    hole = freecad.call("create_sketch", plane="XY", offset=5, geometry=[
+        {"type": "circle", "center": [0, 0], "radius": 3}])
+    cut = freecad.call("pocket", sketch=hole["sketch"], through_all=True)
+    rounded = freecad.call("fillet", edges="all", radius=0.5)
+    return base["feature"], cut["feature"], rounded["feature"]
+
+
+def test_timeline_rollback_and_insert(freecad):
+    pad_name, pocket_name, fillet_name = _plate_with_hole(freecad, "Timeline")
+
+    tl = freecad.call("get_timeline")
+    assert [e["kind"] for e in tl["entries"]] == ["sketch", "feature", "sketch", "feature",
+                                                  "feature"]
+    assert tl["tip"] == fillet_name
+    assert not any(e["rolled_back"] for e in tl["entries"])
+
+    # Step back past the fillet and the pocket.
+    rolled = freecad.call("roll_timeline", steps=-2)
+    assert rolled["tip"] == pad_name
+    tl = freecad.call("get_timeline")
+    assert [e["rolled_back"] for e in tl["entries"]] == [False, False, True, True, True]
+    body = freecad.call("get_object", name=tl["body"])
+    assert body["shape"]["volume"] == pytest.approx(40 * 20 * 5)
+
+    # A feature added now goes in at the marker, before the pocket.
+    boss = freecad.call("create_sketch", plane="XY", offset=5, geometry=[
+        {"type": "circle", "center": [12, 0], "radius": 2}])
+    freecad.call("pad", sketch=boss["sketch"], length=3)
+    order = [e["name"] for e in freecad.call("get_timeline")["entries"]]
+    assert order.index("Pad001") < order.index(pocket_name)
+
+    freecad.call("roll_timeline", to="end")
+    tl = freecad.call("get_timeline")
+    assert tl["tip"] == fillet_name
+    assert not any(e["rolled_back"] or e["error"] for e in tl["entries"])
+
+    freecad.call("roll_timeline", to="start")
+    assert freecad.call("get_timeline")["tip"] is None
+    freecad.call("roll_timeline", to=pocket_name)
+    assert freecad.call("get_timeline")["tip"] == pocket_name
+
+
+def test_suppress_feature(freecad):
+    pad_name, pocket_name, _ = _plate_with_hole(freecad, "Suppress")
+    freecad.call("suppress_feature", name=pocket_name)
+    entry = next(e for e in freecad.call("get_timeline")["entries"]
+                 if e["name"] == pocket_name)
+    assert entry["suppressed"]
+    freecad.call("suppress_feature", name=pocket_name, suppressed=False)
+    with pytest.raises(BridgeError, match="can't be suppressed"):
+        freecad.call("suppress_feature", name="Sketch")
+
+
 def test_run_python(freecad):
     out = freecad.call("run_python", code="print('hi')\nresult = {'n': len(App.listDocuments())}")
     assert out["stdout"] == "hi\n"

@@ -49,8 +49,71 @@ class _ToggleAutoStart:
         return True
 
 
+class _ToggleTimeline:
+    def GetResources(self):
+        return {"Pixmap": icon("timeline.svg"),
+                "MenuText": "Timeline",
+                "ToolTip": "Show or hide the Fusion-style feature timeline",
+                "Checkable": prefs().GetBool("ShowTimeline", True)}
+
+    def Activated(self, checked=None):
+        from . import timeline
+
+        if checked is None:
+            checked = not prefs().GetBool("ShowTimeline", True)
+        prefs().SetBool("ShowTimeline", bool(checked))
+        if checked:
+            timeline.show()
+        else:
+            timeline.hide()
+
+    def IsActive(self):
+        return True
+
+
+class _ToggleShortcuts:
+    def GetResources(self):
+        return {"MenuText": "Fusion keyboard shortcuts",
+                "ToolTip": "E extrude, F fillet, H hole; in sketches R rectangle, "
+                           "D dimension, X construction, O offset. "
+                           "Only active in the Fusion workbench.",
+                "Checkable": prefs().GetBool("FusionShortcuts", True)}
+
+    def Activated(self, checked=None):
+        from . import shortcuts
+
+        if checked is None:
+            checked = not shortcuts.enabled()
+        shortcuts.set_enabled(checked)
+
+    def IsActive(self):
+        return True
+
+
+class _ToggleSketcherOverride:
+    def GetResources(self):
+        return {"MenuText": "Use Fusion keys L, C, P in sketches",
+                "ToolTip": "L line, C circle, P project, like Fusion. This takes those keys "
+                           "from FreeCAD's sketcher (horizontal distance, coincident, "
+                           "parallel) while in the Fusion workbench.",
+                "Checkable": prefs().GetBool("OverrideSketcherKeys", False)}
+
+    def Activated(self, checked=None):
+        from . import shortcuts
+
+        if checked is None:
+            checked = not shortcuts.override_sketcher_keys()
+        shortcuts.set_override_sketcher_keys(checked)
+
+    def IsActive(self):
+        return True
+
+
 BRIDGE_COMMANDS = ["FusionFreeCAD_StartBridge", "FusionFreeCAD_StopBridge"]
-BRIDGE_MENU = BRIDGE_COMMANDS + ["FusionFreeCAD_ToggleAutoStart"]
+MENU = ["FusionFreeCAD_ToggleTimeline", "FusionFreeCAD_ToggleShortcuts",
+        "FusionFreeCAD_ToggleSketcherOverride", "Separator",
+        "FusionFreeCAD_StartBridge", "FusionFreeCAD_StopBridge",
+        "FusionFreeCAD_ToggleAutoStart"]
 
 _registered = False
 
@@ -62,4 +125,7 @@ def register():
     Gui.addCommand("FusionFreeCAD_StartBridge", _StartBridge())
     Gui.addCommand("FusionFreeCAD_StopBridge", _StopBridge())
     Gui.addCommand("FusionFreeCAD_ToggleAutoStart", _ToggleAutoStart())
+    Gui.addCommand("FusionFreeCAD_ToggleTimeline", _ToggleTimeline())
+    Gui.addCommand("FusionFreeCAD_ToggleShortcuts", _ToggleShortcuts())
+    Gui.addCommand("FusionFreeCAD_ToggleSketcherOverride", _ToggleSketcherOverride())
     _registered = True

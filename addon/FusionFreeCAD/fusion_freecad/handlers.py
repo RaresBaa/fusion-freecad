@@ -643,6 +643,63 @@ def delete_object(doc, name):
     return {"deleted": name}
 
 
+# ---------------------------------------------------------------------------
+# timeline (feature history)
+
+def _timeline_body(doc, body):
+    from . import history
+
+    if body:
+        return _resolve_body(doc, body)
+    found = history.find_body(doc)
+    if found is None:
+        raise HandlerError("document has no PartDesign body")
+    return found
+
+
+def get_timeline(body=None, document=None):
+    from . import history
+
+    doc = _doc(document)
+    b = _timeline_body(doc, body)
+    return {"body": b.Name, "tip": b.Tip.Name if b.Tip else None,
+            "marker_index": history.marker_index(b), "entries": history.entries(b)}
+
+
+@_mutating("Roll timeline")
+def roll_timeline(doc, to=None, steps=None, body=None):
+    from . import history
+
+    b = _timeline_body(doc, body)
+    if steps is not None:
+        history.step(b, int(steps))
+    elif to == "end":
+        history.roll_to_end(b)
+    elif to == "start":
+        history.roll_to_start(b)
+    elif to:
+        obj = _obj(doc, to)
+        if obj not in b.Group:
+            raise HandlerError("%s is not in body %s" % (obj.Name, b.Name))
+        history.roll_to(b, obj)
+    else:
+        raise HandlerError("pass to= (feature name, 'start' or 'end') or steps=")
+    return {"body": b.Name, "tip": b.Tip.Name if b.Tip else None,
+            "marker_index": history.marker_index(b)}
+
+
+@_mutating("Suppress feature")
+def suppress_feature(doc, name, suppressed=True):
+    from . import history
+
+    obj = _obj(doc, name)
+    try:
+        history.set_suppressed(obj, suppressed)
+    except ValueError as e:
+        raise HandlerError(str(e))
+    return {"name": obj.Name, "suppressed": bool(suppressed)}
+
+
 def recompute(document=None):
     doc = _doc(document)
     result = {"document": doc.Name}
@@ -823,6 +880,7 @@ HANDLERS = {fn.__name__: fn for fn in [
     ping, list_documents, new_document, open_document, save_document, close_document,
     activate_document, list_objects, get_object, get_topology,
     create_body, create_sketch, add_sketch_geometry, pad, pocket, revolve, fillet, chamfer,
-    set_property, delete_object, recompute, undo, redo,
+    set_property, delete_object, get_timeline, roll_timeline, suppress_feature,
+    recompute, undo, redo,
     set_view, screenshot, export, import_file, run_python,
 ]}
