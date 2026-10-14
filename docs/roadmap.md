@@ -43,7 +43,6 @@
       positive pads, negative pockets; MCP tool `press_pull`
 - [ ] Press/Pull drag handle (an arrow in the 3D view, like Fusion's)
 - [ ] Press/Pull on cylindrical faces (change a hole or fillet radius)
-- [ ] Extrude straight from a selected face without opening a sketch
 - [ ] S-key command search popup
 
 ## Open questions
