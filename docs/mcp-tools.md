@@ -47,7 +47,7 @@ names can change when earlier features change, so look them up again after edits
 | `polar_pattern(count, axis, angle)` | Circular Pattern |
 | `loft(sketches, cut, ruled, closed)` | Loft between two or more profiles |
 | `sweep(sketch, path, path_edges, cut, mode, transition)` | Sweep a profile along a sketch path or edges |
-| `press_pull(face, distance)` | Press Pull: move a flat face, e.g. `"Pad:Face6"`; positive adds, negative cuts |
+| `press_pull(face, distance \| radius)` | Press Pull: move a flat face, e.g. `"Pad:Face6"`; positive adds, negative cuts. On a hole, boss or fillet face it resizes the feature that made it (`radius` sets it directly) |
 | `set_property(name, property, value)` | Edit feature, e.g. change a Pad's `Length` |
 | `delete_object(name)` | Delete |
 | `recompute`, `undo(steps)`, `redo(steps)` | |

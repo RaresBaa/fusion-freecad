@@ -44,7 +44,7 @@
 - [x] Press/Pull (Q): pick a flat face, type or scroll a distance, live preview;
       positive pads, negative pockets; MCP tool `press_pull`
 - [ ] Press/Pull drag handle (an arrow in the 3D view, like Fusion's)
-- [ ] Press/Pull on cylindrical faces (change a hole or fillet radius)
+- [x] Press/Pull on cylindrical faces: resizes the hole, fillet or sketch circle
 
 ## 5. Add-ons
 

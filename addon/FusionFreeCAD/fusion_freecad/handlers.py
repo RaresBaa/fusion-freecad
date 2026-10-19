@@ -1160,22 +1160,39 @@ def polar_pattern(doc, count, axis="Z", angle=360.0, features=None, reversed=Fal
 
 
 @_mutating("Press/Pull")
-def press_pull(doc, face, distance, label=None):
-    from .presspull import PressPull, PressPullError
+def press_pull(doc, face, distance=None, radius=None, label=None):
+    from .presspull import PressPullError, RadiusPull, start
 
     obj_name, _, sub = face.partition(":")
     if not sub:
         raise HandlerError("face must look like 'Pad:Face6', got %r" % face)
-    if abs(float(distance)) < 1e-9:
-        raise HandlerError("distance must not be zero")
+    if (distance is None) == (radius is None):
+        raise HandlerError("pass distance= or (for a cylindrical face) radius=")
     try:
-        op = PressPull(_obj(doc, obj_name), sub)
+        op = start(_obj(doc, obj_name), sub)
+        if radius is not None:
+            if not isinstance(op, RadiusPull):
+                raise HandlerError("radius= is for cylindrical faces; use distance=")
+            original = op.original
+            op.set_radius(radius)
+        else:
+            if abs(float(distance)) < 1e-9:
+                raise HandlerError("distance must not be zero")
+            original = getattr(op, "original", None)
+            op.set_distance(distance)
     except PressPullError as e:
         raise HandlerError(str(e))
-    op.set_distance(distance)
-    if label:
-        op.feature.Label = label
-    return _finish(doc, op.feature, op.body)
+    if not isinstance(op, RadiusPull):
+        if label:
+            op.feature.Label = label
+        return _finish(doc, op.feature, op.body)
+    if op.feature is None:
+        raise HandlerError("that is the current radius already")
+    doc.recompute()
+    result = _feature_result(op.body.Tip, op.body)
+    result.update({"feature": op.feature.Name,
+                   "radius": {"from": _round(original), "to": _round(op.radius)}})
+    return result
 
 
 @_mutating("Set property")

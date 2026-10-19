@@ -7,7 +7,7 @@ import FreeCAD as App
 import FreeCADGui as Gui
 from PySide import QtCore, QtWidgets
 
-from .presspull import PressPull, PressPullError
+from .presspull import PressPullError, RadiusPull, start
 
 
 def _split_subname(obj, sub):
@@ -59,7 +59,8 @@ class PressPullPanel:
         self.doc.openTransaction("Press/Pull")
         picked = _selected_face()
         if picked is None or not self._start(*picked):
-            self.face_label.setText("Click a flat face of the solid.")
+            self.face_label.setText("Click a face of the solid: flat, or a hole, "
+                                    "boss or fillet.")
             Gui.Selection.clearSelection()
             Gui.Selection.addObserver(self)
 
@@ -67,14 +68,22 @@ class PressPullPanel:
 
     def _start(self, obj, face_name):
         try:
-            self.op = PressPull(obj, face_name)
+            self.op = start(obj, face_name)
         except PressPullError as e:
             self.face_label.setText("<span style='color:#d9534f'>%s</span>" % e)
             return False
-        self.face_label.setText("%s, %s" % (self.op.base.Label, face_name))
+        self._show_face()
         self.distance.setEnabled(True)
         QtCore.QTimer.singleShot(0, self._focus_distance)
         return True
+
+    def _show_face(self, error=None):
+        text = "%s, %s" % (self.op.base.Label, self.op.face_name)
+        if isinstance(self.op, RadiusPull):
+            text += "<br>%s: radius %.2f mm" % (self.op.origin.Label, self.op.radius)
+        if error:
+            text += "<br><span style='color:#d9534f'>%s</span>" % error
+        self.face_label.setText(text)
 
     def _focus_distance(self):
         self.distance.setFocus()
@@ -92,8 +101,13 @@ class PressPullPanel:
     def _on_distance(self, value):
         if self.op is None:
             return
-        self.op.set_distance(value)
+        try:
+            self.op.set_distance(value)
+        except PressPullError as e:  # e.g. a hole shrunk to nothing
+            self._show_face(e)
+            return
         self.doc.recompute()
+        self._show_face()
 
     # -- task dialog API ------------------------------------------------------
 

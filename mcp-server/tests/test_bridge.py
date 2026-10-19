@@ -170,15 +170,69 @@ def test_press_pull(freecad):
                      distance=0)
 
 
-def test_press_pull_rejects_curved_faces(freecad):
-    freecad.call("new_document", name="PressPullCurved")
+def _cylinder_face(freecad, feature, radius):
+    topo = freecad.call("get_topology", name=feature)
+    return "%s:%s" % (feature, next(f["name"] for f in topo["faces"]
+                                    if f.get("radius") == pytest.approx(radius)
+                                    and f["surface"] in ("Cylinder", "Toroid")))
+
+
+def test_press_pull_cylinder_boss_and_pocket_hole(freecad):
+    freecad.call("new_document", name="PressPullBoss")
     sk = freecad.call("create_sketch", geometry=[{"type": "circle", "center": [0, 0],
                                                    "radius": 5}])
-    cyl = freecad.call("pad", sketch=sk["sketch"], length=5)
-    topo = freecad.call("get_topology", name=cyl["feature"])
-    curved = next(f["name"] for f in topo["faces"] if f["surface"] == "Cylinder")
-    with pytest.raises(BridgeError, match="flat faces"):
-        freecad.call("press_pull", face="%s:%s" % (cyl["feature"], curved), distance=2)
+    cyl = freecad.call("pad", sketch=sk["sketch"], length=10)["feature"]
+    # Positive adds material: a boss gets bigger.
+    r = freecad.call("press_pull", face=_cylinder_face(freecad, cyl, 5), distance=1)
+    assert r["feature"] == cyl and r["radius"] == {"from": 5, "to": 6}
+    assert r["shape"]["volume"] == pytest.approx(math.pi * 36 * 10, rel=1e-6)
+    # The sketch's diameter dimension changed, so the model stays editable.
+    dims = freecad.call("get_object", name=sk["sketch"])["sketch"]["constraints"]
+    assert any(c["type"] == "Diameter" and c["value"] == pytest.approx(12) for c in dims)
+
+    holes = _hole_sketch(freecad, cyl, [[0, 0]], radius=2)
+    pocket = freecad.call("pocket", sketch=holes, through_all=True)["feature"]
+    # ...and a hole gets smaller.
+    r = freecad.call("press_pull", face=_cylinder_face(freecad, pocket, 2), distance=0.5)
+    assert r["feature"] == pocket and r["radius"]["to"] == pytest.approx(1.5)
+    assert r["shape"]["volume"] == pytest.approx(math.pi * (36 - 2.25) * 10, rel=1e-6)
+    r = freecad.call("press_pull", face=_cylinder_face(freecad, pocket, 1.5), radius=3)
+    assert r["shape"]["volume"] == pytest.approx(math.pi * (36 - 9) * 10, rel=1e-6)
+    with pytest.raises(BridgeError, match="radius -"):
+        freecad.call("press_pull", face=_cylinder_face(freecad, pocket, 3), distance=5)
+    with pytest.raises(BridgeError, match="radius= is for cylindrical faces"):
+        freecad.call("press_pull", face=_face(freecad, pocket, [0, 0, 1]), radius=2)
+
+
+def test_press_pull_fillet_and_hole(freecad):
+    base = _block(freecad, "PressPullFillet")
+    sk = _hole_sketch(freecad, base, [[10, 0]], radius=2)
+    hole = freecad.call("hole", sketch=sk, through_all=True, cut="counterbore",
+                        cut_diameter=8, cut_depth=2)["feature"]
+    r = freecad.call("press_pull", face=_cylinder_face(freecad, hole, 2), distance=-1)
+    assert r["feature"] == hole and r["radius"]["to"] == pytest.approx(3)
+    r = freecad.call("press_pull", face=_cylinder_face(freecad, hole, 4), radius=5)
+    assert r["radius"] == {"from": 4, "to": 5}
+    assert freecad.call("get_object", name=hole)["properties"]["HoleCutDiameter"] \
+        .startswith("10")
+
+    topo = freecad.call("get_topology", name=hole)
+    vertical = [e["name"] for e in topo["edges"] if e["curve"] in ("Line", "LineSegment")
+                and e["start"][:2] == e["end"][:2] and abs(e["start"][0]) == pytest.approx(20)]
+    fillet = freecad.call("fillet", edges=vertical, radius=3)
+    # Outside fillet: adding material makes it sharper.
+    r = freecad.call("press_pull", face=_cylinder_face(freecad, fillet["feature"], 3),
+                     distance=1)
+    assert r["feature"] == fillet["feature"] and r["radius"]["to"] == pytest.approx(2)
+    assert r["shape"]["volume"] > fillet["shape"]["volume"]
+
+    # A threaded hole's size comes from the thread, so it can't be dragged.
+    freecad.call("roll_timeline", to="end")
+    tapped = freecad.call("hole", sketch=_hole_sketch(freecad, fillet["feature"],
+                                                      [[-10, 0]], radius=2),
+                          thread="M6", through_all=True)["feature"]
+    with pytest.raises(BridgeError, match="thread size"):
+        freecad.call("press_pull", face=_cylinder_face(freecad, tapped, 3.3), distance=1)
 
 
 def test_press_pull_sign_flip_and_rollback(freecad):

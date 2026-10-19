@@ -20,7 +20,7 @@ FreeCAD uses only the standard library; everything MCP-specific lives in `mcp-se
 | `workbench.py` | Toolbar layout of the Fusion workbench |
 | `history.py` | Timeline model: body features, rollback marker (= body Tip), suppression. No Qt |
 | `timeline.py` | The timeline dock widget (Qt), drawn on top of `history.py` |
-| `presspull.py` | Press/Pull core: a Pad or Pocket with a face as its profile. No Qt |
+| `presspull.py` | Press/Pull core: a Pad or Pocket with a face as its profile; resizing for curved faces. No Qt |
 | `presspull_gui.py` | The Q task panel: pick a face, live distance preview, one undo step |
 | `integrations.py` | Registry of other add-ons: their toolbar groups, loading them, compatibility patches |
 | `handlers_addons.py` | RPC handlers that drive those add-ons (fasteners, gears, sheet metal, any command) |
@@ -59,6 +59,15 @@ the distance can change sign, which swaps Pad and Pocket; at zero the feature is
 removed. The whole interaction is one transaction, so Cancel leaves nothing behind.
 PartDesign's default Refine merges coplanar faces, so pushing a face keeps a clean
 solid.
+
+Cylindrical faces (`RadiusPull`) can't be offset that way: PartDesign has no offset-face
+feature. Instead we walk the body back from the selected feature to the first one whose
+result has that exact surface (same axis and radius) while its base feature doesn't,
+and change its size: a Fillet's `Radius`, a Hole's `Diameter` or `HoleCutDiameter`, or
+the circle (its dimension, if it has one) in a Pad's or Pocket's sketch. So the history
+stays editable. Positive distance still adds material, so the radius goes up or down
+depending on whether the face is convex (boss, outside fillet) or concave (hole).
+Sizes driven by an expression or a thread size are refused with a message.
 
 ## Other add-ons (`integrations.py`, `handlers_addons.py`)
 

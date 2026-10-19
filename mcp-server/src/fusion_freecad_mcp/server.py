@@ -344,15 +344,22 @@ def sweep(sketch: Annotated[str, Field(description="Closed profile sketch")],
 
 @mcp.tool()
 def press_pull(face: Annotated[str, Field(
-                   description="Flat face to move, e.g. 'Pad:Face6' (see get_topology)")],
-               distance: Annotated[float, Field(
+                   description="Face to move, e.g. 'Pad:Face6' (see get_topology): flat, "
+                               "or the cylindrical face of a hole, boss or fillet")],
+               distance: Annotated[float | None, Field(
                    description="mm along the face's outward normal: positive adds "
-                               "material, negative cuts into the solid")],
+                               "material (a hole gets smaller, a boss bigger, an outside "
+                               "fillet sharper), negative removes it")] = None,
+               radius: Annotated[float | None, Field(
+                   description="Cylindrical faces only: the new radius, instead of "
+                               "distance")] = None,
                label: str | None = None, document: Doc = None) -> dict[str, Any]:
-    """Push or pull a flat face of the solid (Fusion: Press Pull). The quickest way to
-    make a part thicker, extend a side, or recess a face, with no sketch needed."""
-    return client.call("press_pull", face=face, distance=distance, label=label,
-                       document=document)
+    """Push or pull a face of the solid (Fusion: Press Pull). Flat faces: the quickest
+    way to make a part thicker, extend a side, or recess a face, with no sketch. Curved
+    faces: resizes the hole, fillet or sketch circle that made the face, keeping the
+    history editable."""
+    return client.call("press_pull", face=face, distance=distance, radius=radius,
+                       label=label, document=document)
 
 
 Edges = Annotated[list[str] | Literal["all"], Field(
