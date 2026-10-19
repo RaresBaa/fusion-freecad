@@ -15,11 +15,10 @@ from . import prefs
 # and so are tabs left with nothing but Sketch/Inspect.
 TABS = [
     ("Solid", ["Sketch", "Create", "Modify", "Pattern", "Construct", "Inspect"]),
-    ("Sheet Metal", ["Sketch", "Sheet Metal", "Construct", "Inspect"]),
+    ("Sheet Metal", ["Sketch", "Sheet Metal Tools", "Construct", "Inspect"]),
     ("3D Print", ["Sketch", "3D Print", "Threads", "Inspect"]),
     ("Insert", ["Fasteners", "Gears", "Threads", "Inspect"]),
 ]
-ALWAYS = ["MCP"]
 COMMON = {"Sketch", "Construct", "Inspect"}
 BAR_NAME = "FusionTabs"
 
@@ -38,6 +37,10 @@ def _groups():
 
     ours = {n for n, _ in workbench.TOOLBARS} | {n for n, _ in integrations.toolbars()}
     return ours & set(Gui.getWorkbench("FusionWorkbench").listToolbars())
+
+
+def all_groups():
+    return set(_order())
 
 
 def tabs():
@@ -60,7 +63,7 @@ def current():
     if not showing() or not available:
         return _groups()
     index = min(_bar.tabs.currentIndex(), len(available) - 1)
-    return set(available[max(index, 0)][1]) | set(ALWAYS)
+    return set(available[max(index, 0)][1])
 
 
 def _toolbars():
@@ -73,7 +76,7 @@ def _apply():
     shown = current()
     for bar in _toolbars():
         name = bar.objectName()
-        if name in groups and name not in ALWAYS:
+        if name in groups:
             bar.setVisible(name in shown)
     prefs().SetString("FusionTab", _bar.tabs.tabText(_bar.tabs.currentIndex()))
 
@@ -116,7 +119,7 @@ def _order():
     from . import integrations, workbench
 
     names = [n for n, _ in workbench.TOOLBARS] + [n for n, _ in integrations.toolbars()]
-    return names + ALWAYS
+    return names
 
 
 def _place(bar):

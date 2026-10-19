@@ -51,8 +51,13 @@ command, `run_command(command, selection=[...])` runs it like a click.
   window), and when reopened it keeps the old text without keyboard focus, so typing
   fires shortcuts instead. Fusion's S key runs it through `FusionFreeCAD_SearchAtCursor`,
   which moves it to the mouse and clears and focuses it. In Fusion mode FreeCAD's
-  `S, …` two-key shortcuts (select back/forward, link select, SheetMetal's) are
-  unbound so a bare S isn't ambiguous; they come back when you leave Fusion.
+  `S, …` two-key shortcuts (select back/forward, link select, SheetMetal's, Draft's,
+  BIM's, FEM's) are unbound so a bare S isn't ambiguous; they come back when you leave
+  Fusion. Commands on a bare S in other contexts (the sketcher's Symmetric) keep it.
+- **ThreadProfile keeps its toolbar in every workbench** once you've left its own
+  (its *KeepToolbar* setting, on by default). Because the Fusion workbench loads it in
+  the background, that toolbar would sit on every top row, so Fusion FreeCAD turns the
+  setting off unless you've set it yourself. Its tools are in our Threads group.
 - **FreeCAD Ribbon** asks three things on its first start (a welcome form, "generate a
   data file?", and BIM's setup dialog, because it loads every workbench), checks GitHub
   for updates on every start, and hides all classic toolbars, *saving* that. If you

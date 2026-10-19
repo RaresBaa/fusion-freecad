@@ -29,7 +29,9 @@ ADDONS = [
                        "Fasteners_Flip", "Fasteners_Move", "Fasteners_BOM"]),
     ], "Screws, nuts, washers, threaded rods. Select a hole edge first to seat it."),
     Addon("sheetmetal", "SMWorkbench", [
-        ("Sheet Metal", ["SheetMetal_AddBase", "SheetMetal_AddWall",
+        # Not "Sheet Metal": FreeCAD stores toolbar visibility by name, and that's
+        # the SheetMetal workbench's own toolbar.
+        ("Sheet Metal Tools", ["SheetMetal_AddBase", "SheetMetal_AddWall",
                          "SheetMetal_AddFoldWall", "SheetMetal_AddBend",
                          "SheetMetal_AddRelief", "SheetMetal_AddCornerRelief",
                          "SheetMetal_AddHem", "SheetMetal_AddCutout",
@@ -117,6 +119,7 @@ def load(fusion_workbench):
     from . import session
 
     available = Gui.listWorkbenches()
+    _quiet_threadprofile()
     to_load = [a.workbench for a in installed()
                if a.workbench and a.workbench in available and a.toolbars]
     if to_load:
@@ -140,6 +143,15 @@ def load(fusion_workbench):
             fusion_workbench.appendToolbar(name, cmds)
     from . import tabs
     tabs.show()  # now with the add-on tabs
+
+
+def _quiet_threadprofile():
+    """ThreadProfile re-shows its toolbar in every workbench after you leave it once
+    (its KeepToolbar setting). Loading it in the background would put it everywhere;
+    its tools are in our Threads group, so turn that off unless the user set it."""
+    pg = App.ParamGet("User parameter:BaseApp/Preferences/Mod/ThreadProfile")
+    if "KeepToolbar" not in pg.GetBools():
+        pg.SetBool("KeepToolbar", False)
 
 
 def ensure_command(workbench, command):

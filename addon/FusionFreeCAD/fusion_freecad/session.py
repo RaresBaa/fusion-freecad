@@ -82,6 +82,9 @@ def leave():
     navigation.restore()
     timeline.hide()
     tabs.hide()
+    # FreeCAD just stored the groups the tab had hidden as hidden; undo that.
+    from . import layout
+    layout.reset_stored_visibility(tabs.all_groups())
 
 
 def _fusion_toolbar_names():
@@ -89,7 +92,7 @@ def _fusion_toolbar_names():
     # toolbar overflow. Without tabs, only the core groups.
     from . import workbench
     if tabs.showing():
-        return tabs.current() - set(tabs.ALWAYS)
+        return tabs.current()
     return {n for n, _ in workbench.TOOLBARS}
 
 

@@ -28,6 +28,7 @@ FreeCAD uses only the standard library; everything MCP-specific lives in `mcp-se
 | `shortcuts.py` | Fusion single-key shortcuts and restoring FreeCAD's originals |
 | `navigation.py` | Fusion mouse navigation (Revit style) in Fusion mode |
 | `tabs.py` | Toolbar tabs (SOLID, SHEET METAL, ...) that show one set of groups at a time |
+| `layout.py` | First toolbar row in every workbench (standard, SearchBar, MCP); the MCP toolbar |
 | `session.py` | "Fusion mode": keeps timeline and shortcuts alive across FreeCAD's automatic workbench switches |
 | `../InitGui.py` | Registers the workbench; at launch, auto-starts the bridge and cleans up stale shortcuts and navigation |
 
@@ -116,6 +117,22 @@ on one line below the tabs, so a tab's groups sit together (hidden toolbars take
 space). Tabs whose add-ons aren't installed are dropped. During a sketch excursion the
 selected tab's groups stay next to the sketch tools. Off when FreeCAD Ribbon is
 installed, since Ribbon replaces the toolbars itself.
+
+Our sheet metal group is "Sheet Metal Tools", not "Sheet Metal": FreeCAD stores toolbar
+visibility by name when you leave a workbench, so hiding ours would hide the SheetMetal
+workbench's own toolbar. For the same reason, when Fusion mode ends the groups a tab
+had hidden are marked visible again.
+
+## First toolbar row (`layout.py`)
+
+In every workbench the first row is FreeCAD's standard toolbars, then SearchBar and
+MCP; the workbench's toolbars go below. FreeCAD won't keep that by itself: it appends
+new toolbars to the last row, SearchBar re-adds its toolbar at the end on each switch,
+and global custom toolbars are rebuilt on each switch. So the MCP toolbar is our own
+QToolBar (FreeCAD leaves toolbars it didn't make alone; its actions run the commands
+and poll `isActive()`), and `arrange()` runs after every `workbenchActivated` to move
+stray toolbars off the first row and put SearchBar and MCP at its end. It leaves the
+layout alone if the standard toolbars aren't on the first row (the user moved them).
 
 ## Navigation (`navigation.py`)
 

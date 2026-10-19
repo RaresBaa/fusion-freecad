@@ -25,7 +25,6 @@ class FusionWorkbench(FreeCADGui.Workbench):
             cmds = workbench.available(cmds)
             if cmds:
                 self.appendToolbar(name, cmds)
-        self.appendToolbar("MCP", commands.BRIDGE_COMMANDS)
         self.appendMenu("Fusion", commands.MENU)
 
     def Activated(self):
@@ -48,12 +47,21 @@ class FusionWorkbench(FreeCADGui.Workbench):
 
 FreeCADGui.addWorkbench(FusionWorkbench())
 
+# Commands now, not on first activation: the MCP toolbar (layout.py) is in every
+# workbench.
+try:
+    from fusion_freecad import commands as _commands
+    _commands.register()
+except Exception as _e:
+    FreeCAD.Console.PrintWarning("Fusion FreeCAD: commands not registered: %s\n" % _e)
+
 
 def _fusion_freecad_autostart():
-    from fusion_freecad import bridge, commands, integrations, navigation, prefs, shortcuts
+    from fusion_freecad import bridge, integrations, layout, navigation, prefs, shortcuts
 
-    commands.register()
     integrations.apply_patches()
+    layout.migrate()
+    layout.install()
     # Undo Fusion shortcuts and navigation left behind if FreeCAD last quit inside
     # the workbench.
     workbench = FreeCADGui.activeWorkbench()

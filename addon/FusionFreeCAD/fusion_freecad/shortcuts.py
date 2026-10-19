@@ -93,7 +93,9 @@ def _bind(mapping, saved, take_over=False):
     """Bind keys, recording each changed command's previous shortcut in ``saved``.
 
     With take_over, commands already using one of the keys, or a two-key sequence
-    starting with it ("S, B"), are unbound first.
+    starting with it ("S, B"), are unbound first. take_over="sequences" only unbinds
+    the sequences (they'd make the bare key wait for a second one) and leaves other
+    commands on the bare key alone (the sketcher's S); FreeCAD picks the active one.
     """
     known = set(Gui.listCommands())
     if take_over:
@@ -101,6 +103,8 @@ def _bind(mapping, saved, take_over=False):
             if name in saved:
                 continue
             current = Gui.Command.get(name).getShortcut()
+            if take_over == "sequences" and "," not in current:
+                continue
             first = current.split(",")[0].strip()
             if first in mapping and mapping[first] != name:
                 saved[name] = current
@@ -124,7 +128,7 @@ def apply():
         saved = {}
     _bind(PART_KEYS, saved)
     if "SearchBar" in Gui.listCommands():
-        _bind(SEARCH_KEYS, saved, take_over=True)
+        _bind(SEARCH_KEYS, saved, take_over="sequences")
     _store_saved(saved)
 
 
