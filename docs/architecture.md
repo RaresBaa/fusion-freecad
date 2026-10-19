@@ -23,6 +23,7 @@ FreeCAD uses only the standard library; everything MCP-specific lives in `mcp-se
 | `presspull.py` | Press/Pull core: a Pad or Pocket with a face as its profile; resizing for curved faces. No Qt |
 | `presspull_gui.py` | The Q task panel: pick a face, live distance preview, one undo step |
 | `integrations.py` | Registry of other add-ons: their toolbar groups, loading them, compatibility patches |
+| `handlers_assembly.py` | RPC handlers for assemblies: links to parts, joints and the solver of FreeCAD's Assembly workbench |
 | `handlers_addons.py` | RPC handlers that drive those add-ons (fasteners, gears, sheet metal, any command) |
 | `shortcuts.py` | Fusion single-key shortcuts and restoring FreeCAD's originals |
 | `session.py` | "Fusion mode": keeps timeline and shortcuts alive across FreeCAD's automatic workbench switches |

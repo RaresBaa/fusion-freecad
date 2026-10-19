@@ -566,6 +566,79 @@ def redo(steps: int = 1, document: Doc = None) -> dict[str, Any]:
     return client.call("redo", steps=steps, document=document)
 
 
+# --- assemblies --------------------------------------------------------------
+
+Assembly = Annotated[str | None, Field(
+    description="Assembly to use; defaults to the document's only assembly")]
+JointRef = Annotated[str, Field(
+    description="A part of the assembly (its name from insert_part, or the body it "
+                "shows) plus an element of it, e.g. 'Pin:Edge2' (a circular edge = its "
+                "centre and axis) or 'Plate:Face6'; the part alone means its origin. "
+                "Use get_topology on the part to find element names")]
+
+
+@mcp.tool()
+def create_assembly(label: str = "Assembly", document: Doc = None) -> dict[str, Any]:
+    """Create an assembly (FreeCAD's Assembly workbench) to put parts together with
+    joints. Model each part as its own body first."""
+    return client.call("create_assembly", label=label, document=document)
+
+
+@mcp.tool()
+def insert_part(part: Annotated[str, Field(description="Body (or other solid) to add")],
+                position: Annotated[list[float] | None, Field(
+                    description="[x, y, z] start position; joints move it later")] = None,
+                rotation_axis: list[float] | None = None,
+                rotation_angle: Annotated[float, Field(description="Degrees")] = 0.0,
+                ground: Annotated[bool | None, Field(
+                    description="Fix it in place; by default the first part is "
+                                "grounded")] = None,
+                assembly: Assembly = None, label: str | None = None,
+                document: Doc = None) -> dict[str, Any]:
+    """Add a part to an assembly, as a link (Fusion: insert a component). The same body
+    can be inserted several times."""
+    return client.call("insert_part", part=part, position=position,
+                       rotation_axis=rotation_axis, rotation_angle=rotation_angle,
+                       ground=ground, assembly=assembly, label=label, document=document)
+
+
+@mcp.tool()
+def create_joint(type: Annotated[Literal["fixed", "revolute", "cylindrical", "slider",
+                                         "ball", "distance", "parallel", "perpendicular",
+                                         "angle"], Field(
+                     description="fixed = rigid, revolute = hinge, cylindrical = turns "
+                                 "and slides, slider = slides, ball = pivots; distance / "
+                                 "parallel / perpendicular / angle relate two elements")],
+                 a: JointRef, b: JointRef,
+                 offset: Annotated[list[float] | None, Field(
+                     description="[x, y, z] shift of b relative to a's joint origin "
+                                 "(z is along a's axis/normal)")] = None,
+                 rotation: Annotated[float, Field(
+                     description="Turn b about the joint axis, degrees")] = 0.0,
+                 distance: Annotated[float | None, Field(
+                     description="For distance joints")] = None,
+                 angle: Annotated[float | None, Field(description="For angle joints")] = None,
+                 assembly: Assembly = None, label: str | None = None,
+                 document: Doc = None) -> dict[str, Any]:
+    """Join two parts (Fusion: Joint): b is moved so its element lines up with a's, then
+    the assembly is solved. Returns every part's new position."""
+    return client.call("create_joint", type=type, a=a, b=b, offset=offset,
+                       rotation=rotation, distance=distance, angle=angle,
+                       assembly=assembly, label=label, document=document)
+
+
+@mcp.tool()
+def solve_assembly(assembly: Assembly = None, document: Doc = None) -> dict[str, Any]:
+    """Re-solve an assembly's joints, e.g. after editing a part or a joint property."""
+    return client.call("solve_assembly", assembly=assembly, document=document)
+
+
+@mcp.tool()
+def get_assembly(assembly: Assembly = None, document: Doc = None) -> dict[str, Any]:
+    """Parts (position, rotation, grounded) and joints of an assembly."""
+    return client.call("get_assembly", assembly=assembly, document=document)
+
+
 # --- other add-ons (need the FreeCAD GUI) ----------------------------------------
 
 @mcp.tool()

@@ -9,7 +9,7 @@
 - [x] Hole (with thread presets, counterbore/countersink), linear and polar patterns,
       mirror, shell
 - [x] Loft, sweep (join or cut)
-- [ ] Assemblies (FreeCAD 1.x Assembly workbench): insert parts, joints
+- [x] Assemblies (FreeCAD 1.x Assembly workbench): insert parts, joints, solve
 - [x] Sketch editing: move/delete geometry, named dimensions, expressions/parameters
 - [x] Measurements (distance, angle) as tools
 

@@ -559,6 +559,59 @@ def test_export_dxf_outline(freecad, tmp_path):
                    for o in freecad.call("list_objects")["objects"])
 
 
+def _circle_edge(freecad, obj, radius, z):
+    topo = freecad.call("get_topology", name=obj)
+    return "%s:%s" % (obj, next(e["name"] for e in topo["edges"]
+                                if e.get("radius") == pytest.approx(radius)
+                                and e["center"][2] == pytest.approx(z)))
+
+
+def test_assembly_pin_in_plate(freecad):
+    freecad.call("new_document", name="Asm")
+    plate = freecad.call("create_body", label="Plate")["body"]
+    sk = freecad.call("create_sketch", body=plate, geometry=[
+        {"type": "rectangle", "center": [0, 0], "width": 40, "height": 20},
+        {"type": "circle", "center": [10, 0], "radius": 2}])
+    freecad.call("pad", sketch=sk["sketch"], length=5)
+    pin = freecad.call("create_body", label="Pin")["body"]
+    sk = freecad.call("create_sketch", body=pin, geometry=[
+        {"type": "circle", "center": [0, 0], "radius": 2}])
+    freecad.call("pad", sketch=sk["sketch"], length=12)
+
+    freecad.call("create_assembly")
+    p = freecad.call("insert_part", part=plate)
+    assert p["grounded"]  # the first part is grounded, like in Fusion
+    q = freecad.call("insert_part", part=pin, position=[50, 30, 7])
+    assert not q["grounded"]
+
+    # Seat the pin's bottom rim on the hole's top rim, then 5 mm down into it.
+    j = freecad.call("create_joint", type="revolute",
+                     a=_circle_edge(freecad, p["part"], 2, 5),
+                     b=_circle_edge(freecad, q["part"], 2, 7), offset=[0, 0, -5])
+    assert j["solved"], j
+    parts = {x["name"]: x for x in j["parts"]}
+    assert parts[q["part"]]["position"] == pytest.approx([10, 0, 0])
+    assert parts[p["part"]]["position"] == pytest.approx([0, 0, 0])
+    assert j["joints"][0]["type"] == "Revolute"
+
+    # The body name works as well as the link's; a fixed joint at the origins with a
+    # 90 degree turn.
+    freecad.call("delete_object", name=j["joint"])
+    f = freecad.call("create_joint", type="Fixed", a=plate, b=pin, rotation=90)
+    pin_part = next(x for x in f["parts"] if x["name"] == q["part"])
+    assert pin_part["position"] == pytest.approx([0, 0, 0])
+    assert pin_part["angle"] == pytest.approx(90)
+
+    info = freecad.call("get_assembly")
+    assert [x["grounded"] for x in info["parts"]] == [True, False]
+    with pytest.raises(BridgeError, match="type must be one of"):
+        freecad.call("create_joint", type="glue", a=plate, b=pin)
+    with pytest.raises(BridgeError, match="two different parts"):
+        freecad.call("create_joint", type="fixed", a=plate, b=plate + ":Face1")
+    with pytest.raises(BridgeError, match="already in"):
+        freecad.call("insert_part", part=p["part"])
+
+
 def test_run_python(freecad):
     out = freecad.call("run_python", code="print('hi')\nresult = {'n': len(App.listDocuments())}")
     assert out["stdout"] == "hi\n"

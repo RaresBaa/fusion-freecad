@@ -118,6 +118,22 @@ features are inserted at the marker.
 
 Typical use: roll back before a fillet, add a hole, then `roll_timeline(to="end")`.
 
+## Assemblies
+
+FreeCAD 1.x's Assembly workbench. Model each part as its own body, then:
+
+| Tool | Does |
+|---|---|
+| `create_assembly(label)` | New assembly |
+| `insert_part(part, position, rotation_axis, rotation_angle, ground)` | Add a body as a linked part. The first part is grounded unless `ground=false` |
+| `create_joint(type, a, b, offset, rotation, distance, angle)` | `fixed`, `revolute`, `cylindrical`, `slider`, `ball`, `distance`, `parallel`, `perpendicular`, `angle`. `a`/`b` are `"Part:Edge2"` (a circular edge = its centre and axis), `"Part:Face6"`, or `"Part"` (its origin); b moves to a. `offset` shifts b from a's joint origin |
+| `solve_assembly` / `get_assembly` | Re-solve; list parts (position, rotation, grounded) and joints |
+
+Element names come from `get_topology` on the part (the assembly's link, which has
+the part's shape where it sits). Example: a pin through a hole is
+`create_joint("revolute", a="Plate:Edge15", b="Pin:Edge2", offset=[0, 0, -5])`,
+which puts the pin's bottom rim on the hole's top rim, then 5 mm down.
+
 ## Other add-ons (GUI only)
 
 These drive the add-ons in [addons.md](addons.md) and say so if one isn't installed.

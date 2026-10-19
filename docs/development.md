@@ -76,6 +76,14 @@ block startup scripts until answered.
 - Add-ons that create PartDesign-aware objects (Gears, SheetMetal) put them into the
   *active body*. Clear `view.setActiveObject("pdbody", None)` first if that's unwanted.
 - Screenshots and offscreen renders come out blank while the Windows session is locked.
+- Assembly joints (1.1): pass references as `[part_link, [sub, sub]]`. The
+  `[assembly, ["Link.Edge2", ...]]` form is accepted and stored, but the solver then
+  leaves the parts where they are (and still returns 0). `asm.Group` also holds
+  helper objects that aren't parts.
+- `PartDesign::LinearPattern` in 1.1 leaves `Spacings2` at `[0.0]`, which stacks the
+  second direction on the first; set it to `[-1.0] * (Occurrences2 - 1)`.
+- `sketch.setDatum()` keeps an existing expression on that constraint; clear it with
+  `setExpression(path, None)` first.
 - GUI checks: `Gui.getMainWindow().grab()` shows widgets but not the 3D view (OpenGL);
   use the `screenshot` handler for the model. `PySide6.QtTest.QTest` can simulate key
   presses and mouse drags through `run_python`.

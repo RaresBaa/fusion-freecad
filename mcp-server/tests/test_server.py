@@ -12,7 +12,8 @@ def test_tools_registered():
                  "mirror", "linear_pattern", "polar_pattern", "loft", "sweep",
                  "measure", "set_dimension", "delete_sketch_geometry",
                  "move_sketch_geometry", "set_parameters", "get_parameters",
-                 "set_expression"]:
+                 "set_expression", "create_assembly", "insert_part", "create_joint",
+                 "get_assembly"]:
         assert name in tools
     tool = tools["create_sketch"]
     sketch_schema = getattr(tool, "input_schema", None) or tool.inputSchema  # mcp 2.x / 1.x
