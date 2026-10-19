@@ -6,7 +6,8 @@ Treating those as leaving the Fusion workbench would hide the timeline and drop 
 shortcuts mid-edit, and leave you in another workbench afterwards. Instead:
 
 - A switch to Sketcher/PartDesign while something is being edited is an "excursion":
-  the timeline and shortcuts stay, and when the edit ends we switch back to Fusion.
+  the timeline, shortcuts and Fusion toolbars stay, and when the edit ends we switch
+  back to Fusion.
 - Any other switch means the user left on purpose: Fusion mode ends, the timeline
   hides and the original shortcuts come back.
 
@@ -78,6 +79,28 @@ def leave():
     timeline.hide()
 
 
+def _fusion_toolbar_names():
+    # Only the core groups: with the add-on groups too, the sketch tools would be
+    # pushed into toolbar overflow.
+    from . import workbench
+    return {n for n, _ in workbench.TOOLBARS}
+
+
+def _show_fusion_toolbars():
+    """The edit workbench hides our toolbars; show them again, like Fusion keeps its
+    tool tabs while sketching. (Their tools are greyed out until the edit ends.)
+    Toolbars the user turned off stay off."""
+    from PySide import QtWidgets
+    import FreeCAD
+
+    stored = FreeCAD.ParamGet("User parameter:BaseApp/MainWindow/Toolbars")
+    names = _fusion_toolbar_names()
+    for bar in Gui.getMainWindow().findChildren(QtWidgets.QToolBar):
+        name = bar.objectName()
+        if name in names and not bar.isVisible() and stored.GetBool(name, True):
+            bar.setVisible(True)
+
+
 def _tick():
     global _excursion
     if _suspended:
@@ -90,6 +113,7 @@ def _tick():
     elif name in EDIT_WORKBENCHES and (_excursion or _editing()):
         if _editing():
             _excursion = True
+            _show_fusion_toolbars()
         else:
             # The edit that took us away has finished: come home.
             _excursion = False

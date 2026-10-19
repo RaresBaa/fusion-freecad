@@ -23,8 +23,8 @@
 - [x] Stay in Fusion across FreeCAD's automatic workbench switches during edits
 - [x] Q press/pull
 - [x] Command search (SearchBar add-on)
-- [ ] Keep the Fusion toolbars visible while editing sketches (FreeCAD swaps in the
-      Sketcher workbench's toolbars)
+- [x] Keep the Fusion toolbars visible while editing sketches (core groups, next to
+      the sketch tools)
 - [ ] Fusion mouse navigation and a dark theme
 - [ ] Ribbon-style tabs (evaluate the community Ribbon UI addon vs our own)
 

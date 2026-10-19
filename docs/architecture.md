@@ -37,7 +37,9 @@ Sketcher workbench, and PartDesign feature dialogs activate PartDesign. So
 active workbench every 250 ms while in Fusion mode:
 
 - Sketcher/PartDesign while something is being edited: an excursion. Keep the
-  timeline and keys, and switch back to Fusion when the edit ends.
+  timeline and keys, show the core Fusion toolbars again (the edit workbench hides
+  them; their tools are greyed out until the edit ends, but the layout stays put),
+  and switch back to Fusion when the edit ends.
 - Anything else: the user left on purpose. Hide the timeline and restore shortcuts.
 
 ## Timeline (`history.py`, `timeline.py`)

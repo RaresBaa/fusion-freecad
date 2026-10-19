@@ -845,6 +845,17 @@ def _finish(doc, feature, body):
     return _feature_result(feature, body)
 
 
+def _set_midplane(feat, midplane):
+    """Extrude symmetrically. FreeCAD 1.1 replaced Midplane by SideType and warns (with
+    a notification popup) whenever Midplane is set, even to False."""
+    if not midplane:
+        return
+    if "SideType" in feat.PropertiesList:
+        feat.SideType = "Symmetric"
+    else:
+        feat.Midplane = True
+
+
 @_mutating("Pad")
 def pad(doc, sketch, length=10.0, reversed=False, midplane=False,
         up_to_face=None, label=None):
@@ -857,7 +868,7 @@ def pad(doc, sketch, length=10.0, reversed=False, midplane=False,
         feat.Type = "Length"
         feat.Length = float(length)
     feat.Reversed = bool(reversed)
-    feat.Midplane = bool(midplane)
+    _set_midplane(feat, midplane)
     return _finish(doc, feat, body)
 
 
@@ -871,7 +882,7 @@ def pocket(doc, sketch, length=10.0, through_all=False, reversed=False,
         feat.Type = "Length"
         feat.Length = float(length)
     feat.Reversed = bool(reversed)
-    feat.Midplane = bool(midplane)
+    _set_midplane(feat, midplane)
     return _finish(doc, feat, body)
 
 

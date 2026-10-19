@@ -82,6 +82,20 @@ def test_set_property_recomputes(freecad):
     assert info["shape"]["volume"] == pytest.approx(math.pi * 25 * 20, rel=1e-6)
 
 
+def test_midplane(freecad):
+    freecad.call("new_document", name="Midplane")
+    sk = freecad.call("create_sketch", geometry=[
+        {"type": "rectangle", "center": [0, 0], "width": 20, "height": 20}])
+    pad = freecad.call("pad", sketch=sk["sketch"], length=10, midplane=True)
+    assert pad["shape"]["bound_box"]["min"][2] == pytest.approx(-5)
+    assert pad["shape"]["bound_box"]["max"][2] == pytest.approx(5)
+    # A symmetric pocket on XZ cuts 3 mm to each side of the plane, all inside the block.
+    sk = freecad.call("create_sketch", plane="XZ", geometry=[
+        {"type": "rectangle", "center": [0, 0], "width": 4, "height": 4}])
+    cut = freecad.call("pocket", sketch=sk["sketch"], length=6, midplane=True)
+    assert cut["shape"]["volume"] == pytest.approx(20 * 20 * 10 - 4 * 4 * 6)
+
+
 def _plate_with_hole(freecad, name):
     """Pad (40x20x5) -> Pocket (through hole) -> Fillet; returns the feature names."""
     freecad.call("new_document", name=name)
