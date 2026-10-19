@@ -109,6 +109,24 @@ class _ToggleSketcherOverride:
         return True
 
 
+class _ToggleNavigation:
+    def GetResources(self):
+        return {"MenuText": "Fusion mouse navigation",
+                "ToolTip": "Middle-drag pans, Shift+middle-drag orbits, the wheel zooms "
+                           "(FreeCAD's Revit style). Only active in the Fusion workbench.",
+                "Checkable": prefs().GetBool("FusionNavigation", True)}
+
+    def Activated(self, checked=None):
+        from . import navigation
+
+        if checked is None:
+            checked = not navigation.enabled()
+        navigation.set_enabled(checked)
+
+    def IsActive(self):
+        return True
+
+
 class _ShowToolbars:
     """Some add-ons (FreeCAD Ribbon) hide the classic toolbars and save that; this
     brings the Fusion workbench's toolbars back."""
@@ -174,7 +192,8 @@ class _SearchAtCursor:
 
 BRIDGE_COMMANDS = ["FusionFreeCAD_StartBridge", "FusionFreeCAD_StopBridge"]
 MENU = ["FusionFreeCAD_ToggleTimeline", "FusionFreeCAD_ToggleShortcuts",
-        "FusionFreeCAD_ToggleSketcherOverride", "FusionFreeCAD_ShowToolbars",
+        "FusionFreeCAD_ToggleSketcherOverride", "FusionFreeCAD_ToggleNavigation",
+        "FusionFreeCAD_ShowToolbars",
         "FusionFreeCAD_SearchAtCursor",
         "Separator",
         "FusionFreeCAD_StartBridge", "FusionFreeCAD_StopBridge",
@@ -193,6 +212,7 @@ def register():
     Gui.addCommand("FusionFreeCAD_ToggleTimeline", _ToggleTimeline())
     Gui.addCommand("FusionFreeCAD_ToggleShortcuts", _ToggleShortcuts())
     Gui.addCommand("FusionFreeCAD_ToggleSketcherOverride", _ToggleSketcherOverride())
+    Gui.addCommand("FusionFreeCAD_ToggleNavigation", _ToggleNavigation())
     Gui.addCommand("FusionFreeCAD_ShowToolbars", _ShowToolbars())
     Gui.addCommand("FusionFreeCAD_SearchAtCursor", _SearchAtCursor())
 

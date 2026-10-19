@@ -25,7 +25,8 @@
 - [x] Command search (SearchBar add-on)
 - [x] Keep the Fusion toolbars visible while editing sketches (core groups, next to
       the sketch tools)
-- [ ] Fusion mouse navigation and a dark theme
+- [x] Fusion mouse navigation in Fusion mode (Revit style: middle pans, Shift+middle
+      orbits); dark theme is FreeCAD 1.1's built-in "FreeCAD Dark" or OpenTheme's OpenDark
 - [ ] Ribbon-style tabs (evaluate the community Ribbon UI addon vs our own)
 
 ## 3. Timeline

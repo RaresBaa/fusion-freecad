@@ -50,14 +50,16 @@ FreeCADGui.addWorkbench(FusionWorkbench())
 
 
 def _fusion_freecad_autostart():
-    from fusion_freecad import bridge, commands, integrations, prefs, shortcuts
+    from fusion_freecad import bridge, commands, integrations, navigation, prefs, shortcuts
 
     commands.register()
     integrations.apply_patches()
-    # Undo Fusion shortcuts left behind if FreeCAD last quit inside the workbench.
+    # Undo Fusion shortcuts and navigation left behind if FreeCAD last quit inside
+    # the workbench.
     workbench = FreeCADGui.activeWorkbench()
     if workbench is None or workbench.name() != "FusionWorkbench":
         shortcuts.restore()
+        navigation.restore()
     if prefs().GetBool("AutoStartServer", False):
         bridge.start()
 

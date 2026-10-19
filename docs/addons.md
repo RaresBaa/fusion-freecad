@@ -23,7 +23,7 @@ listed in [`addons.json`](../addons.json), pinned to commits tested with FreeCAD
 | [ThreadProfile](https://github.com/mwganson/ThreadProfile) | recommended | **Threads** toolbar: modelled threads | `run_command` | Thread profile created |
 | [FusedFilamentDesign](https://github.com/rahix/FusedFilamentDesign) | recommended | **3D Print** toolbar: hole wizard, teardrop, counterbore bridges, auto-fillet, rib threads, zip-tie channels | `run_command` | Auto-fillet adds a PartDesign fillet |
 | [Gridfinity](https://github.com/Stu142/FreeCAD-Gridfinity-Workbench) | recommended | **3D Print**: bins and baseplates | `run_command` | Bin and baseplate |
-| [OpenTheme](https://github.com/obelisk79/OpenTheme) | recommended | Themes: *Preferences → General → Theme → OpenDark* | | Installs as a preference pack |
+| [OpenTheme](https://github.com/obelisk79/OpenTheme) | recommended | Themes: *Preferences → General → Theme → OpenDark* (FreeCAD 1.1's own *FreeCAD Dark* works too) | | Installs as a preference pack |
 | [Curves](https://github.com/tomate44/CurvesWB) | recommended | Own workbench (NURBS surfaces) | `run_command` | Loads cleanly |
 | [Defeaturing](https://github.com/easyw/Defeaturing_WB) | recommended | Own workbench (clean up imported STEP) | `run_command` | Loads cleanly |
 | [Manipulator](https://github.com/easyw/Manipulator) | recommended | Own workbench (precise move/align) | | Loads cleanly |

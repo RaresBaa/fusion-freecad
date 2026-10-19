@@ -26,8 +26,9 @@ FreeCAD uses only the standard library; everything MCP-specific lives in `mcp-se
 | `handlers_assembly.py` | RPC handlers for assemblies: links to parts, joints and the solver of FreeCAD's Assembly workbench |
 | `handlers_addons.py` | RPC handlers that drive those add-ons (fasteners, gears, sheet metal, any command) |
 | `shortcuts.py` | Fusion single-key shortcuts and restoring FreeCAD's originals |
+| `navigation.py` | Fusion mouse navigation (Revit style) in Fusion mode |
 | `session.py` | "Fusion mode": keeps timeline and shortcuts alive across FreeCAD's automatic workbench switches |
-| `../InitGui.py` | Registers the workbench; at launch, auto-starts the bridge and cleans up stale shortcuts |
+| `../InitGui.py` | Registers the workbench; at launch, auto-starts the bridge and cleans up stale shortcuts and navigation |
 
 ## Fusion mode (`session.py`)
 
@@ -40,7 +41,7 @@ active workbench every 250 ms while in Fusion mode:
   timeline and keys, show the core Fusion toolbars again (the edit workbench hides
   them; their tools are greyed out until the edit ends, but the layout stays put),
   and switch back to Fusion when the edit ends.
-- Anything else: the user left on purpose. Hide the timeline and restore shortcuts.
+- Anything else: the user left on purpose. Hide the timeline and restore shortcuts and navigation.
 
 ## Timeline (`history.py`, `timeline.py`)
 
@@ -105,6 +106,14 @@ on the next launch. Sketcher tool actions only exist once a sketch has been open
 sketch keys are bound from inside the sketcher. FreeCAD's sketcher uses many single
 letters for constraints; part keys (E, F, H) coexist with them because each set is only
 enabled in its own context. Fusion's clashing sketch keys (L, C, P) are opt-in.
+
+## Navigation (`navigation.py`)
+
+Fusion pans with the middle button, orbits with Shift+middle and zooms at the cursor;
+FreeCAD's Revit navigation style matches. Like the shortcuts, it's set (preference and
+open views) when Fusion mode starts and the user's style comes back when it ends,
+with the original kept in `SavedNavigationStyle` for crash cleanup. If the user picks
+another style while in Fusion mode, theirs is kept.
 
 ### Threading
 

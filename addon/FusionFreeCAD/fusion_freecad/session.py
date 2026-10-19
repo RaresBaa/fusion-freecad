@@ -20,7 +20,7 @@ import contextlib
 import FreeCADGui as Gui
 from PySide import QtCore
 
-from . import prefs, shortcuts, timeline
+from . import navigation, prefs, shortcuts, timeline
 
 FUSION = "FusionWorkbench"
 EDIT_WORKBENCHES = {"SketcherWorkbench", "PartDesignWorkbench"}
@@ -62,6 +62,7 @@ def enter():
         return
     _excursion = False
     shortcuts.apply()
+    navigation.apply()
     if prefs().GetBool("ShowTimeline", True):
         timeline.show()
     if _timer is None:
@@ -76,6 +77,7 @@ def leave():
     if _timer is not None:
         _timer.stop()
     shortcuts.restore()
+    navigation.restore()
     timeline.hide()
 
 
