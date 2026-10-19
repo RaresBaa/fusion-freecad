@@ -35,7 +35,7 @@
       double-click to edit; right-click to edit, roll back, suppress or delete
 - [x] Rolled-back features faded, suppressed struck through, failing outlined red
 - [x] Stays in sync with every kind of change; MCP tools for the agent
-- [ ] Drag features to reorder them
+- [x] Drag features to reorder them (their own sketch moves along); MCP tool `move_feature`
 - [ ] Group sketches with the feature that uses them (Fusion shows them separately,
       but it would make long timelines shorter)
 

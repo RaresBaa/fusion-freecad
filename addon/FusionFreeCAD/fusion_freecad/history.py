@@ -125,6 +125,72 @@ def step(body, delta):
     return roll_to_index(body, target)
 
 
+def own_sketch(body, obj):
+    """The profile sketch that only ``obj`` uses, which moves along with it."""
+    profile = getattr(obj, "Profile", None)
+    sketch = profile[0] if isinstance(profile, tuple) else profile
+    if sketch is None or not sketch.isDerivedFrom("Sketcher::SketchObject"):
+        return None
+    group = body.Group
+    users = [o for o in sketch.InList if o in group]
+    return sketch if sketch in group and users == [obj] else None
+
+
+def move(body, obj, boundary, with_sketch=True):
+    """Move ``obj`` (with its own sketch) to just after group[boundary] (-1: first).
+
+    Refuses moves that would put something before what it is built on. PartDesign
+    relinks the chain of BaseFeatures itself. The rollback marker stays on the same
+    feature, or at the end if it was at the end. Returns False if nothing moved.
+    """
+    group = body.Group
+    if obj not in group:
+        raise ValueError("%s is not in body %s" % (obj.Name, body.Name))
+    sketch = own_sketch(body, obj) if with_sketch else None
+    moving = [o for o in group if o is obj or o is sketch]
+    anchor = group[boundary] if boundary >= 0 else None
+    if anchor in moving:
+        return False
+    rest = [o for o in group if o not in moving]
+    at = rest.index(anchor) + 1 if anchor is not None else 0
+    order = rest[:at] + moving + rest[at:]
+    if order == group:
+        return False
+    _check_order(order, moving)
+
+    tip = body.Tip
+    at_end = not any(is_feature(o) for o in group[marker_index(body) + 1:])
+    for m in moving:
+        body.removeObject(m)
+    previous = anchor
+    for m in moving:
+        if previous is None:
+            body.insertObject(m, body.Group[0], False)
+        else:
+            body.insertObject(m, previous, True)
+        previous = m
+    if at_end:
+        roll_to_end(body)
+    else:
+        _set_tip(body, tip)
+    return True
+
+
+def _check_order(order, moving):
+    position = {o: i for i, o in enumerate(order)}
+    for m in moving:
+        base = getattr(m, "BaseFeature", None)  # relinked by PartDesign
+        for used in m.OutList:
+            if used in position and used is not base and position[used] > position[m]:
+                raise ValueError("%s is built on %s, so it can't go before it"
+                                 % (m.Label, used.Label))
+        for user in m.InList:
+            if (user in position and getattr(user, "BaseFeature", None) is not m
+                    and position[user] < position[m]):
+                raise ValueError("%s uses %s, so %s can't go after it"
+                                 % (user.Label, m.Label, m.Label))
+
+
 def set_suppressed(obj, suppressed):
     if "Suppressed" not in obj.PropertiesList:
         raise ValueError("%s can't be suppressed" % obj.Name)

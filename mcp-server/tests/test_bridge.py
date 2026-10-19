@@ -130,6 +130,40 @@ def test_timeline_rollback_and_insert(freecad):
     assert freecad.call("get_timeline")["tip"] == pocket_name
 
 
+def test_move_feature(freecad):
+    base = _block(freecad, "Reorder", height=5)
+    hole_sk = freecad.call("create_sketch", offset=9, geometry=[
+        {"type": "circle", "center": [0, 0], "radius": 3}])["sketch"]
+    hole = freecad.call("pocket", sketch=hole_sk, through_all=True)["feature"]
+    boss_sk = _hole_sketch(freecad, base, [[0, 0]], radius=5)
+    boss = freecad.call("pad", sketch=boss_sk, length=4)["feature"]
+    plate, boss_vol, hole_area = 40 * 20 * 5, math.pi * 25 * 4, math.pi * 9
+    # The hole came first, so it doesn't go through the boss.
+    assert freecad.call("get_object", name=boss)["shape"]["volume"] \
+        == pytest.approx(plate - hole_area * 5 + boss_vol, rel=1e-6)
+
+    # Move the hole (and its sketch) to the end: now it cuts the boss too.
+    m = freecad.call("move_feature", name=hole, after="end")
+    assert m["moved"] and m["order"][-2:] == [hole_sk, hole]
+    assert m["tip"] == hole  # was at the end, stays at the end
+    assert m["shape"]["volume"] == pytest.approx(plate - hole_area * 9 + boss_vol, rel=1e-6)
+    assert not any(o["valid"] is False for o in freecad.call("list_objects")["objects"])
+
+    # And back before the boss, with the marker rolled back to the plate.
+    freecad.call("roll_timeline", to=base)
+    m = freecad.call("move_feature", name=hole, before=boss_sk)
+    assert m["order"].index(hole) < m["order"].index(boss_sk)
+    assert m["tip"] == base
+    freecad.call("roll_timeline", to="end")
+
+    # The boss's sketch sits on the plate's top face: it can't go before the plate.
+    with pytest.raises(BridgeError, match="built on"):
+        freecad.call("move_feature", name=boss, after="start")
+    with pytest.raises(BridgeError, match="uses"):
+        freecad.call("move_feature", name=boss_sk, after="end", with_sketch=False)
+    assert freecad.call("move_feature", name=boss, after=boss)["moved"] is False
+
+
 def test_suppress_feature(freecad):
     pad_name, pocket_name, _ = _plate_with_hole(freecad, "Suppress")
     freecad.call("suppress_feature", name=pocket_name)

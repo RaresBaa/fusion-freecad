@@ -541,6 +541,23 @@ def roll_timeline(to: Annotated[str | None, Field(
 
 
 @mcp.tool()
+def move_feature(name: Annotated[str, Field(description="Feature (or sketch) to move")],
+                 after: Annotated[str | None, Field(
+                     description="Put it right after this feature, or 'start' / 'end'")]
+                     = None,
+                 before: Annotated[str | None, Field(
+                     description="Or: right before this feature")] = None,
+                 with_sketch: Annotated[bool, Field(
+                     description="Move the feature's own profile sketch along")] = True,
+                 document: Doc = None) -> dict[str, Any]:
+    """Reorder the history (Fusion: drag a feature in the timeline). Refused if the
+    feature would come before something it is built on (e.g. the face its sketch sits
+    on). Returns the new order and the body's shape."""
+    return client.call("move_feature", name=name, after=after, before=before,
+                       with_sketch=with_sketch, document=document)
+
+
+@mcp.tool()
 def suppress_feature(name: str, suppressed: bool = True,
                      document: Doc = None) -> dict[str, Any]:
     """Suppress (temporarily disable) or unsuppress a feature without deleting it."""

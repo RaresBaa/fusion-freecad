@@ -1,6 +1,7 @@
 """Fusion-style timeline: a strip of feature icons docked at the bottom of FreeCAD.
 
-- Click selects a feature, double-click edits it, right-click opens a menu.
+- Click selects a feature, double-click edits it, right-click opens a menu. Drag a
+  feature to reorder the history (its own sketch moves with it).
 - The orange marker sits after the body's Tip. Drag it to roll the model back;
   new features are then inserted at the marker. Playback buttons step it.
 - Rolled-back features are faded, suppressed ones struck through, failing ones red.
@@ -23,6 +24,7 @@ STRIP_HEIGHT = 46
 MARKER_COLOR = QtGui.QColor("#f28c28")
 ERROR_COLOR = QtGui.QColor("#d9534f")
 SELECT_COLOR = QtGui.QColor(70, 140, 230, 90)
+DROP_COLOR = QtGui.QColor(70, 140, 230)
 POLL_MS = 300
 
 
@@ -34,6 +36,9 @@ class TimelineStrip(QtWidgets.QWidget):
         self.marker = -1         # index after which the marker sits
         self.selected = set()
         self.drag_marker = None  # marker index while dragging
+        self.press = None        # (cell index, x) of a left press on a feature
+        self.drag_item = None    # cell index being dragged to reorder
+        self.drop_at = None      # boundary it would be dropped at
         self.setMouseTracking(True)
         self.setFixedHeight(STRIP_HEIGHT)
 
@@ -109,7 +114,18 @@ class TimelineStrip(QtWidgets.QWidget):
         self._paint_marker(p, self.marker, 1.0)
         if self.drag_marker is not None and self.drag_marker != self.marker:
             self._paint_marker(p, self.drag_marker, 0.5)
+        if self.drag_item is not None:
+            p.setPen(QtGui.QPen(DROP_COLOR, 2, QtCore.Qt.DashLine))
+            p.setBrush(QtCore.Qt.NoBrush)
+            p.drawRoundedRect(self.cell_rect(self.drag_item).adjusted(3, 0, -3, 0), 4, 4)
+            if self._drop_changes_order():
+                x = self.marker_x(self.drop_at)
+                p.setPen(QtGui.QPen(DROP_COLOR, 3))
+                p.drawLine(x, 6, x, STRIP_HEIGHT - 6)
         p.end()
+
+    def _drop_changes_order(self):
+        return self.drop_at not in (self.drag_item, self.drag_item - 1)
 
     def _paint_marker(self, p, marker, opacity):
         x = self.marker_x(marker)
@@ -133,6 +149,7 @@ class TimelineStrip(QtWidgets.QWidget):
         i = self.index_at(x)
         if event.button() == QtCore.Qt.LeftButton and i is not None:
             self.panel.select(self.items[i][0], event.modifiers())
+            self.press = (i, x)
 
     def mouseMoveEvent(self, event):
         x = _x(event)
@@ -140,10 +157,29 @@ class TimelineStrip(QtWidgets.QWidget):
             self.drag_marker = self.boundary_at(x)
             self.update()
             return
+        if self.press is not None and event.buttons() & QtCore.Qt.LeftButton:
+            i, start_x = self.press
+            if (self.drag_item is None
+                    and abs(x - start_x) >= QtWidgets.QApplication.startDragDistance()):
+                self.drag_item = i
+                self.setCursor(QtCore.Qt.ClosedHandCursor)
+            if self.drag_item is not None:
+                self.drop_at = self.boundary_at(x)
+                self.update()
+                return
         self.setCursor(QtCore.Qt.SizeHorCursor if self.near_marker(x)
                        else QtCore.Qt.ArrowCursor)
 
     def mouseReleaseEvent(self, event):
+        self.press = None
+        if self.drag_item is not None:
+            item, self.drag_item = self.drag_item, None
+            target, self.drop_at = self.drop_at, None
+            self.setCursor(QtCore.Qt.ArrowCursor)
+            self.update()
+            if target not in (item, item - 1):
+                self.panel.move(self.items[item][0], target)
+            return
         if self.drag_marker is None:
             return
         target, self.drag_marker = self.drag_marker, None
@@ -283,12 +319,16 @@ class TimelinePanel(QtWidgets.QWidget):
         except Exception as e:
             doc.abortTransaction()
             App.Console.PrintError("Timeline: %s\n" % e)
+            Gui.getMainWindow().statusBar().showMessage(str(e), 6000)
             return
         doc.commitTransaction()
         self.refresh(force=True)
 
     def roll_to_index(self, index):
         self._change("Roll timeline", lambda: history.roll_to_index(self.body, index))
+
+    def move(self, obj, boundary):
+        self._change("Move feature", lambda: history.move(self.body, obj, boundary))
 
     def roll_start(self):
         self._change("Roll timeline", lambda: history.roll_to_start(self.body))

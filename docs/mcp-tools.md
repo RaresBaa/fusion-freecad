@@ -114,7 +114,8 @@ features are inserted at the marker.
 |---|---|
 | `get_timeline(body?)` | Entries in order: kind (sketch/feature/datum), rolled back, suppressed, failed |
 | `roll_timeline(to \| steps)` | `to`: feature name, `"start"` or `"end"`; `steps`: move by N solid features (negative = back) |
-| `suppress_feature(name, suppressed)` | Disable a feature without deleting it |
+| `move_feature(name, after \| before, with_sketch)` | Reorder: put a feature (and its own sketch) after/before another, or at `"start"` / `"end"`. Refused if it would come before what it's built on |
+\| `suppress_feature(name, suppressed)` \| Disable a feature without deleting it \|
 
 Typical use: roll back before a fillet, add a hole, then `roll_timeline(to="end")`.
 

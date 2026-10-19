@@ -1259,6 +1259,37 @@ def roll_timeline(doc, to=None, steps=None, body=None):
             "marker_index": history.marker_index(b)}
 
 
+@_mutating("Move feature")
+def move_feature(doc, name, after=None, before=None, with_sketch=True):
+    from . import history
+
+    obj = _obj(doc, name)
+    b = history.body_of(obj)
+    if b is None:
+        raise HandlerError("%s is not in a PartDesign body" % obj.Name)
+    group = b.Group
+    if (after is None) == (before is None):
+        raise HandlerError("pass after= or before= (a feature name, or 'start' / 'end')")
+    target = after if after is not None else before
+    if target == "start":
+        boundary = -1
+    elif target == "end":
+        boundary = len(group) - 1
+    else:
+        other = _obj(doc, target)
+        if other not in group:
+            raise HandlerError("%s is not in body %s" % (other.Name, b.Name))
+        boundary = group.index(other) - (0 if after is not None else 1)
+    try:
+        moved = history.move(b, obj, boundary, with_sketch=bool(with_sketch))
+    except ValueError as e:
+        raise HandlerError(str(e))
+    doc.recompute()
+    return {"moved": moved, "body": b.Name, "order": [o.Name for o in b.Group],
+            "tip": b.Tip.Name if b.Tip else None,
+            "shape": _shape_summary(b.Shape)}
+
+
 @_mutating("Suppress feature")
 def suppress_feature(doc, name, suppressed=True):
     from . import history
@@ -1489,7 +1520,7 @@ HANDLERS = {fn.__name__: fn for fn in [
     move_sketch_geometry, set_parameters, delete_parameter, get_parameters, set_expression,
     pad, pocket, revolve, fillet, chamfer,
     press_pull, hole, shell, mirror, linear_pattern, polar_pattern, loft, sweep,
-    set_property, delete_object, get_timeline, roll_timeline, suppress_feature,
+    set_property, delete_object, get_timeline, roll_timeline, move_feature, suppress_feature,
     recompute, undo, redo,
     set_view, screenshot, export, import_file, run_python,
 ]}

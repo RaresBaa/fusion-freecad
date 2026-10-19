@@ -47,6 +47,12 @@ already excludes features after the tip from the body's shape and inserts new fe
 right after it, which is exactly Fusion's rollback. Only solid features can be the tip,
 so rolling to a sketch puts the tip on the nearest solid feature before it.
 
+Dragging a feature reorders the body's `Group` (`history.move`): the feature and the
+profile sketch only it uses are removed and re-inserted at the drop point, and
+PartDesign relinks the BaseFeature chain itself. A move is refused when something
+would end up before an object it links to (its sketch, the face a sketch is attached
+to), and the marker stays on the same feature, or at the end if it was there.
+
 The widget repaints when a cheap signature of the active body (names, labels, states,
 tip, selection) changes, polled a few times a second while visible. That keeps it in
 sync with every source of change (tree, undo, Python, MCP) without document observers.
