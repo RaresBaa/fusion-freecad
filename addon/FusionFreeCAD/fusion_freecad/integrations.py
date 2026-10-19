@@ -131,6 +131,10 @@ def load(fusion_workbench):
                 fusion_workbench.appendToolbar(name, cmds)
             # Re-activating rebuilds Fusion's toolbars, now including the new groups.
             Gui.activateWorkbench("FusionWorkbench")
+        # The add-ons just brought their own shortcuts (SheetMetal's "S, B", ...).
+        from . import shortcuts
+        if shortcuts.active():
+            shortcuts.apply()
     else:
         for name, cmds in toolbars():
             fusion_workbench.appendToolbar(name, cmds)

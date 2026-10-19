@@ -46,6 +46,13 @@ command, `run_command(command, selection=[...])` runs it like a click.
   [APEbbers/SearchBar#47](https://github.com/APEbbers/SearchBar/issues/47). Fusion
   FreeCAD patches the function at startup (`integrations.patch_searchbar`); the patch
   switches itself off once the upstream code changes.
+- **SearchBar's search-at-mouse box opens off-screen** unless FreeCAD sits at the
+  top-left of the desktop (it places the box with screen coordinates inside the main
+  window), and when reopened it keeps the old text without keyboard focus, so typing
+  fires shortcuts instead. Fusion's S key runs it through `FusionFreeCAD_SearchAtCursor`,
+  which moves it to the mouse and clears and focuses it. In Fusion mode FreeCAD's
+  `S, …` two-key shortcuts (select back/forward, link select, SheetMetal's) are
+  unbound so a bare S isn't ambiguous; they come back when you leave Fusion.
 - **FreeCAD Ribbon** asks three things on its first start (a welcome form, "generate a
   data file?", and BIM's setup dialog, because it loads every workbench), checks GitHub
   for updates on every start, and hides all classic toolbars, *saving* that. If you

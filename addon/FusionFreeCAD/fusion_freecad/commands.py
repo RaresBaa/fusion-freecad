@@ -132,9 +132,50 @@ class _ShowToolbars:
         return True
 
 
+class _SearchAtCursor:
+    """S: SearchBar's search box at the mouse, like Fusion's S toolbox.
+
+    Wraps SearchBar's own command so the key can live on an action we control: it's
+    off while a sketch is being edited, where S is FreeCAD's Symmetric constraint.
+    """
+
+    def GetResources(self):
+        return {"MenuText": "Search at cursor",
+                "ToolTip": "Search commands, objects and preferences at the mouse "
+                           "(SearchBar add-on)"}
+
+    def Activated(self):
+        from PySide import QtCore, QtGui, QtWidgets
+
+        Gui.runCommand("SearchBar", 0)
+        # SearchBar moves its box to the cursor's screen position in main-window
+        # coordinates, so it lands off-screen unless FreeCAD sits at (0, 0).
+        mw = Gui.getMainWindow()
+        bar = mw.findChild(QtWidgets.QToolBar, "SearchBarAtMouse")
+        if bar is None or not bar.isVisible():
+            return
+        # The box is nested in a wrapper toolbar; move the outermost one.
+        outer = bar
+        while outer.parentWidget() is not None and outer.parentWidget() is not mw:
+            outer = outer.parentWidget()
+        target = QtGui.QCursor.pos() + QtCore.QPoint(10, -10)
+        outer.move(mw.mapFromGlobal(target) if outer.parentWidget() is mw else target)
+        # Reopened, it keeps the last text and doesn't take focus, so typing would
+        # trigger shortcuts in the 3D view instead. Start empty and focused, like Fusion.
+        line = bar.findChild(QtWidgets.QLineEdit)
+        if line is not None:
+            line.clear()
+            line.setFocus(QtCore.Qt.ShortcutFocusReason)
+
+    def IsActive(self):
+        from .session import _sketch_in_edit
+        return "SearchBar" in Gui.listCommands() and not _sketch_in_edit()
+
+
 BRIDGE_COMMANDS = ["FusionFreeCAD_StartBridge", "FusionFreeCAD_StopBridge"]
 MENU = ["FusionFreeCAD_ToggleTimeline", "FusionFreeCAD_ToggleShortcuts",
         "FusionFreeCAD_ToggleSketcherOverride", "FusionFreeCAD_ShowToolbars",
+        "FusionFreeCAD_SearchAtCursor",
         "Separator",
         "FusionFreeCAD_StartBridge", "FusionFreeCAD_StopBridge",
         "FusionFreeCAD_ToggleAutoStart"]
@@ -153,6 +194,7 @@ def register():
     Gui.addCommand("FusionFreeCAD_ToggleShortcuts", _ToggleShortcuts())
     Gui.addCommand("FusionFreeCAD_ToggleSketcherOverride", _ToggleSketcherOverride())
     Gui.addCommand("FusionFreeCAD_ShowToolbars", _ShowToolbars())
+    Gui.addCommand("FusionFreeCAD_SearchAtCursor", _SearchAtCursor())
 
     from .presspull_gui import PressPullCommand
     Gui.addCommand("FusionFreeCAD_PressPull", PressPullCommand())

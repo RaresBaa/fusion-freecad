@@ -10,7 +10,10 @@ L horizontal distance, P parallel, E equal, H horizontal, ...). Those only work 
 a sketch is open and our part-level commands (E, F, H) only work outside one, so the
 two sets coexist. Fusion's sketch keys that clash (L, C, P) are only bound when
 "OverrideSketcherKeys" is enabled, which moves FreeCAD's constraints off those keys.
-T and S are never bound: FreeCAD uses them as prefixes of two-key shortcuts.
+S opens SearchBar's search box at the mouse (Fusion's S toolbox). FreeCAD uses S as
+the first key of two-key shortcuts (S, B select back; S, G link select; ...), which
+would make a bare S ambiguous, so those are unbound in Fusion mode and restored after.
+T is never bound: FreeCAD's tree view commands use it the same way.
 """
 
 import json
@@ -25,6 +28,10 @@ PART_KEYS = {
     "F": "PartDesign_Fillet",
     "H": "PartDesign_Hole",
     "Q": "FusionFreeCAD_PressPull",      # Press Pull
+}
+
+SEARCH_KEYS = {
+    "S": "FusionFreeCAD_SearchAtCursor",  # S toolbox (needs the SearchBar add-on)
 }
 
 SKETCH_KEYS = {  # keys FreeCAD's sketcher doesn't use
@@ -85,7 +92,8 @@ def active():
 def _bind(mapping, saved, take_over=False):
     """Bind keys, recording each changed command's previous shortcut in ``saved``.
 
-    With take_over, commands already using one of the keys are unbound first.
+    With take_over, commands already using one of the keys, or a two-key sequence
+    starting with it ("S, B"), are unbound first.
     """
     known = set(Gui.listCommands())
     if take_over:
@@ -93,7 +101,8 @@ def _bind(mapping, saved, take_over=False):
             if name in saved:
                 continue
             current = Gui.Command.get(name).getShortcut()
-            if current in mapping and mapping[current] != name:
+            first = current.split(",")[0].strip()
+            if first in mapping and mapping[first] != name:
                 saved[name] = current
                 Gui.Command.get(name).setShortcut("")
     for key, name in mapping.items():
@@ -114,6 +123,8 @@ def apply():
     if saved is None:
         saved = {}
     _bind(PART_KEYS, saved)
+    if "SearchBar" in Gui.listCommands():
+        _bind(SEARCH_KEYS, saved, take_over=True)
     _store_saved(saved)
 
 

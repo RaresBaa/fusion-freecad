@@ -14,7 +14,7 @@ Status: early. Working today:
   reorder them, double-click to edit, right-click to suppress or delete.
 - **Press/Pull** (Q): pick a face, type a distance; positive adds, negative cuts. On a
   hole, boss or fillet it changes the radius.
-- **Fusion keys**: E extrude, F fillet, H hole, Q press/pull; in sketches R rectangle,
+- **Fusion keys**: E extrude, F fillet, H hole, Q press/pull, S search at the mouse; in sketches R rectangle,
   D dimension, X construction, O offset. Optionally L line, C circle, P project (*Fusion* menu).
   They're only active while you're in the Fusion workbench.
 - **Add-ons built in**: screws and nuts (Fasteners), sheet metal with flat patterns,

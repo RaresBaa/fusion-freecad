@@ -54,7 +54,7 @@
       FusedFilamentDesign, Gridfinity; MCP tools for fasteners, gears, sheet metal and
       any command
 - [x] Patch for SearchBar's FreeCAD 1.1 crash (drop when upstream #47 is fixed)
-- [ ] Bind S to SearchBar's search-at-cursor (MouseBar)
+- [x] S opens SearchBar's search box at the mouse (outside sketches)
 - [x] Sheet metal flat pattern export to DXF (`export` to `.dxf`, any flat part)
 - [ ] Test the Nix flake on NixOS
 
