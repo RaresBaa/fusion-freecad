@@ -27,6 +27,7 @@ FreeCAD uses only the standard library; everything MCP-specific lives in `mcp-se
 | `handlers_addons.py` | RPC handlers that drive those add-ons (fasteners, gears, sheet metal, any command) |
 | `shortcuts.py` | Fusion single-key shortcuts and restoring FreeCAD's originals |
 | `navigation.py` | Fusion mouse navigation (Revit style) in Fusion mode |
+| `tabs.py` | Toolbar tabs (SOLID, SHEET METAL, ...) that show one set of groups at a time |
 | `session.py` | "Fusion mode": keeps timeline and shortcuts alive across FreeCAD's automatic workbench switches |
 | `../InitGui.py` | Registers the workbench; at launch, auto-starts the bridge and cleans up stale shortcuts and navigation |
 
@@ -106,6 +107,15 @@ on the next launch. Sketcher tool actions only exist once a sketch has been open
 sketch keys are bound from inside the sketcher. FreeCAD's sketcher uses many single
 letters for constraints; part keys (E, F, H) coexist with them because each set is only
 enabled in its own context. Fusion's clashing sketch keys (L, C, P) are opt-in.
+
+## Toolbar tabs (`tabs.py`)
+
+A tab bar in its own toolbar row; each tab (`TABS`) shows some of our toolbar groups
+and hides the rest, so the add-on groups don't make one long row. Our groups are put
+on one line below the tabs, so a tab's groups sit together (hidden toolbars take no
+space). Tabs whose add-ons aren't installed are dropped. During a sketch excursion the
+selected tab's groups stay next to the sketch tools. Off when FreeCAD Ribbon is
+installed, since Ribbon replaces the toolbars itself.
 
 ## Navigation (`navigation.py`)
 

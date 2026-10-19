@@ -138,6 +138,8 @@ def load(fusion_workbench):
     else:
         for name, cmds in toolbars():
             fusion_workbench.appendToolbar(name, cmds)
+    from . import tabs
+    tabs.show()  # now with the add-on tabs
 
 
 def ensure_command(workbench, command):

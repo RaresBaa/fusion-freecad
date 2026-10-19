@@ -20,7 +20,7 @@ import contextlib
 import FreeCADGui as Gui
 from PySide import QtCore
 
-from . import navigation, prefs, shortcuts, timeline
+from . import navigation, prefs, shortcuts, tabs, timeline
 
 FUSION = "FusionWorkbench"
 EDIT_WORKBENCHES = {"SketcherWorkbench", "PartDesignWorkbench"}
@@ -65,6 +65,8 @@ def enter():
     navigation.apply()
     if prefs().GetBool("ShowTimeline", True):
         timeline.show()
+    # FreeCAD shows the workbench's toolbars after Activated(); pick the tab's after.
+    QtCore.QTimer.singleShot(0, tabs.show)
     if _timer is None:
         _timer = QtCore.QTimer()
         _timer.timeout.connect(_tick)
@@ -79,12 +81,15 @@ def leave():
     shortcuts.restore()
     navigation.restore()
     timeline.hide()
+    tabs.hide()
 
 
 def _fusion_toolbar_names():
-    # Only the core groups: with the add-on groups too, the sketch tools would be
-    # pushed into toolbar overflow.
+    # The selected tab's groups; all of them would push the sketch tools into
+    # toolbar overflow. Without tabs, only the core groups.
     from . import workbench
+    if tabs.showing():
+        return tabs.current() - set(tabs.ALWAYS)
     return {n for n, _ in workbench.TOOLBARS}
 
 

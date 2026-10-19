@@ -27,7 +27,8 @@
       the sketch tools)
 - [x] Fusion mouse navigation in Fusion mode (Revit style: middle pans, Shift+middle
       orbits); dark theme is FreeCAD 1.1's built-in "FreeCAD Dark" or OpenTheme's OpenDark
-- [ ] Ribbon-style tabs (evaluate the community Ribbon UI addon vs our own)
+- [x] Toolbar tabs (SOLID / SHEET METAL / 3D PRINT / INSERT), each showing its own
+      groups; our own instead of FreeCAD Ribbon, which replaces and hides every toolbar
 
 ## 3. Timeline
 

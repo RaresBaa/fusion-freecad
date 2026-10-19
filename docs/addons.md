@@ -28,7 +28,7 @@ listed in [`addons.json`](../addons.json), pinned to commits tested with FreeCAD
 | [Defeaturing](https://github.com/easyw/Defeaturing_WB) | recommended | Own workbench (clean up imported STEP) | `run_command` | Loads cleanly |
 | [Manipulator](https://github.com/easyw/Manipulator) | recommended | Own workbench (precise move/align) | | Loads cleanly |
 | [Render](https://github.com/FreeCAD/FreeCAD-render) | recommended | Own workbench | | Loads; needs Blender, LuxCore or POV-Ray installed to render |
-| [FreeCAD Ribbon](https://github.com/APEbbers/FreeCAD-Ribbon) | ui | Ribbon UI; Fusion becomes a tab with our groups | | Works alongside Fusion (see notes) |
+| [FreeCAD Ribbon](https://github.com/APEbbers/FreeCAD-Ribbon) | ui | Ribbon UI; Fusion becomes a tab with our groups | | Works alongside Fusion (see notes); our own toolbar tabs turn off when it's installed |
 | [PieMenu](https://github.com/Grubuntu/PieMenu) | ui | Radial menu on **Tab** | | Loads cleanly |
 
 Toolbars appear only for add-ons that are installed. The first time you open the

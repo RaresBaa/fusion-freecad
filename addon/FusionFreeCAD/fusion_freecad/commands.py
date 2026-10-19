@@ -127,6 +127,24 @@ class _ToggleNavigation:
         return True
 
 
+class _ToggleTabs:
+    def GetResources(self):
+        return {"MenuText": "Toolbar tabs",
+                "ToolTip": "SOLID / SHEET METAL / 3D PRINT / INSERT tabs above the "
+                           "toolbars, each showing its own tool groups, like Fusion",
+                "Checkable": prefs().GetBool("FusionTabs", True)}
+
+    def Activated(self, checked=None):
+        from . import tabs
+
+        if checked is None:
+            checked = not prefs().GetBool("FusionTabs", True)
+        tabs.set_enabled(checked)
+
+    def IsActive(self):
+        return True
+
+
 class _ShowToolbars:
     """Some add-ons (FreeCAD Ribbon) hide the classic toolbars and save that; this
     brings the Fusion workbench's toolbars back."""
@@ -145,6 +163,9 @@ class _ShowToolbars:
         for bar in Gui.getMainWindow().findChildren(QtWidgets.QToolBar):
             if bar.objectName() in names:
                 bar.setVisible(True)
+        from . import tabs
+        if tabs.showing():
+            tabs.show()  # back to the selected tab's groups
 
     def IsActive(self):
         return True
@@ -193,7 +214,7 @@ class _SearchAtCursor:
 BRIDGE_COMMANDS = ["FusionFreeCAD_StartBridge", "FusionFreeCAD_StopBridge"]
 MENU = ["FusionFreeCAD_ToggleTimeline", "FusionFreeCAD_ToggleShortcuts",
         "FusionFreeCAD_ToggleSketcherOverride", "FusionFreeCAD_ToggleNavigation",
-        "FusionFreeCAD_ShowToolbars",
+        "FusionFreeCAD_ToggleTabs", "FusionFreeCAD_ShowToolbars",
         "FusionFreeCAD_SearchAtCursor",
         "Separator",
         "FusionFreeCAD_StartBridge", "FusionFreeCAD_StopBridge",
@@ -213,6 +234,7 @@ def register():
     Gui.addCommand("FusionFreeCAD_ToggleShortcuts", _ToggleShortcuts())
     Gui.addCommand("FusionFreeCAD_ToggleSketcherOverride", _ToggleSketcherOverride())
     Gui.addCommand("FusionFreeCAD_ToggleNavigation", _ToggleNavigation())
+    Gui.addCommand("FusionFreeCAD_ToggleTabs", _ToggleTabs())
     Gui.addCommand("FusionFreeCAD_ShowToolbars", _ShowToolbars())
     Gui.addCommand("FusionFreeCAD_SearchAtCursor", _SearchAtCursor())
 
