@@ -372,6 +372,84 @@ def get_topology(name, document=None, max_items=300):
     return result
 
 
+def _element(doc, ref):
+    """'Pad' (whole shape) or 'Pad:Face6' / 'Pad:Edge3' / 'Pad:Vertex2'."""
+    obj_name, _, sub = str(ref).partition(":")
+    obj = _obj(doc, obj_name)
+    shape = getattr(obj, "Shape", None)
+    if shape is None or shape.isNull():
+        raise HandlerError("%s has no shape" % obj.Name)
+    if not sub:
+        return shape
+    try:
+        return shape.getElement(sub)
+    except Exception:
+        raise HandlerError("%s has no %s (see get_topology)" % (obj.Name, sub))
+
+
+def _direction(shape):
+    """Normal of a planar face or direction of a straight edge, else None."""
+    import Part
+
+    if isinstance(shape, Part.Face) and type(shape.Surface).__name__ == "Plane":
+        u0, u1, v0, v1 = shape.ParameterRange
+        return shape.normalAt((u0 + u1) / 2, (v0 + v1) / 2)
+    if isinstance(shape, Part.Edge) and type(shape.Curve).__name__ in ("Line", "LineSegment"):
+        return shape.Vertexes[-1].Point - shape.Vertexes[0].Point
+    return None
+
+
+def _measure_one(shape):
+    import Part
+
+    info = {"kind": type(shape).__name__.lower()}
+    if isinstance(shape, Part.Vertex):
+        info["point"] = _vec_out(shape.Point)
+    elif isinstance(shape, Part.Edge):
+        info["length"] = _round(shape.Length)
+        if hasattr(shape.Curve, "Radius"):
+            info["radius"] = _round(shape.Curve.Radius)
+            info["diameter"] = _round(2 * shape.Curve.Radius)
+            info["center"] = _vec_out(shape.Curve.Center)
+    elif isinstance(shape, Part.Face):
+        info["area"] = _round(shape.Area)
+        if hasattr(shape.Surface, "Radius"):
+            info["radius"] = _round(shape.Surface.Radius)
+            info["diameter"] = _round(2 * shape.Surface.Radius)
+    else:
+        summary = _shape_summary(shape)
+        if summary:
+            info.update(summary)
+    return info
+
+
+def measure(a, b=None, document=None):
+    """Size of one element, or the distance and angle between two."""
+    doc = _doc(document)
+    sa = _element(doc, a)
+    if b is None:
+        return _measure_one(sa)
+    sb = _element(doc, b)
+    dist, pairs, _ = sa.distToShape(sb)
+    result = {"distance": _round(dist)}
+    if pairs:
+        p, q = pairs[0]
+        result["closest_points"] = [_vec_out(p), _vec_out(q)]
+        d = q - p
+        result["delta"] = _vec_out(d)
+    da, db = _direction(sa), _direction(sb)
+    if da is not None and db is not None and da.Length > 0 and db.Length > 0:
+        import math
+        angle = math.degrees(da.getAngle(db))
+        result["angle"] = _round(angle)
+        # Parallel planar faces: the gap between their planes, not just the closest points.
+        if abs(math.sin(math.radians(angle))) < 1e-9 and hasattr(sa, "Surface") \
+                and hasattr(sb, "Surface"):
+            n = V(da).normalize()
+            result["plane_distance"] = _round(abs((sb.CenterOfMass - sa.CenterOfMass).dot(n)))
+    return result
+
+
 # ---------------------------------------------------------------------------
 # modelling
 
@@ -514,6 +592,236 @@ def _add_constraint(sketch, item):
         raise HandlerError("could not add constraint %r: %s" % (item, e))
 
 
+def _sketch(doc, name):
+    sk = _obj(doc, name)
+    if sk.TypeId != "Sketcher::SketchObject":
+        raise HandlerError("%r is not a sketch" % name)
+    return sk
+
+
+def _constraint_index(sk, constraint):
+    if isinstance(constraint, int):
+        if not 0 <= constraint < len(sk.Constraints):
+            raise HandlerError("%s has no constraint %d" % (sk.Name, constraint))
+        return constraint
+    for i, c in enumerate(sk.Constraints):
+        if c.Name == constraint:
+            return i
+    raise HandlerError("%s has no constraint named %r" % (sk.Name, constraint))
+
+
+_DIMENSIONS = {"Distance", "DistanceX", "DistanceY", "Radius", "Diameter", "Angle"}
+
+
+def _sketch_result(sk, status):
+    return {"sketch": sk.Name, "solver_ok": status == 0,
+            "fully_constrained": bool(getattr(sk, "FullyConstrained", False)),
+            "sketch_info": _sketch_info(sk)}
+
+
+@_mutating("Set dimension")
+def set_dimension(doc, sketch, constraint, value=None, expression=None, name=None):
+    sk = _sketch(doc, sketch)
+    i = _constraint_index(sk, constraint)
+    c = sk.Constraints[i]
+    if name:
+        sk.renameConstraint(i, name)
+    if value is not None or expression is not None:
+        if c.Type not in _DIMENSIONS:
+            raise HandlerError("constraint %d is a %s, not a dimension" % (i, c.Type))
+        path = ".Constraints.%s" % sk.Constraints[i].Name if sk.Constraints[i].Name \
+            else ".Constraints[%d]" % i
+        if expression is not None:
+            try:
+                sk.setExpression(path, expression)
+            except Exception as e:
+                raise HandlerError("bad expression %r: %s" % (expression, e))
+        else:
+            sk.setExpression(path, None)
+            unit = "deg" if c.Type == "Angle" else "mm"
+            try:
+                sk.setDatum(i, App.Units.Quantity("%s %s" % (float(value), unit)))
+            except Exception as e:
+                raise HandlerError("could not set constraint %d to %s: %s" % (i, value, e))
+    return _sketch_result(sk, sk.solve())
+
+
+@_mutating("Delete sketch geometry")
+def delete_sketch_geometry(doc, sketch, geometry=None, constraints=None):
+    sk = _sketch(doc, sketch)
+    if not geometry and not constraints:
+        raise HandlerError("pass geometry=[indices] and/or constraints=[indices or names]")
+    # Constraints first: deleting geometry renumbers them.
+    for i in sorted({_constraint_index(sk, c) for c in constraints or []}, reverse=True):
+        sk.delConstraint(i)
+    geometry = sorted(set(int(g) for g in geometry or []))
+    if geometry:
+        bad = [g for g in geometry if not 0 <= g < len(sk.Geometry)]
+        if bad:
+            raise HandlerError("%s has no geometry %s" % (sk.Name, bad))
+        sk.delGeometries(geometry)
+    return _sketch_result(sk, sk.solve())
+
+
+_POINTS = {"edge": 0, "start": 1, "end": 2, "center": 3}
+
+
+@_mutating("Move sketch geometry")
+def move_sketch_geometry(doc, sketch, index, to, point="edge", relative=False):
+    sk = _sketch(doc, sketch)
+    if not 0 <= int(index) < len(sk.Geometry):
+        raise HandlerError("%s has no geometry %d" % (sk.Name, index))
+    if point not in _POINTS:
+        raise HandlerError("point must be edge, start, end or center")
+    status = sk.moveGeometry(int(index), _POINTS[point], _vec(to, "to"), bool(relative))
+    if status not in (0, None):
+        raise HandlerError("the sketch solver could not move it there (constraints?)")
+    return _sketch_result(sk, sk.solve())
+
+
+# Parameters: one App::VarSet named "Parameters" (Fusion: Change Parameters). Expressions
+# anywhere can then use Parameters.<name>.
+
+_PARAMETER_GROUP = "Parameters"
+_PARAMETER_TYPES = {"length": "App::PropertyDistance", "angle": "App::PropertyAngle",
+                    "number": "App::PropertyFloat"}
+
+
+def _parameters(doc, create=False):
+    obj = doc.getObject("Parameters")
+    if obj is None or obj.TypeId != "App::VarSet":
+        if not create:
+            return None
+        obj = doc.addObject("App::VarSet", "Parameters")
+    return obj
+
+
+def _parameter_names(vs):
+    return [p for p in vs.PropertiesList if vs.getGroupOfProperty(p) == _PARAMETER_GROUP]
+
+
+def _kind_of(quantity):
+    unit = quantity.Unit
+    if unit == App.Units.Unit("mm"):
+        return "length"
+    if unit == App.Units.Unit("deg"):
+        return "angle"
+    if unit == App.Units.Unit():
+        return "number"
+    raise HandlerError("parameters can be lengths, angles or plain numbers, got %s"
+                       % quantity.UserString)
+
+
+def _set_parameter(vs, name, spec):
+    if not isinstance(spec, dict):
+        spec = {"value": spec}
+    value, kind = spec.get("value"), spec.get("kind")
+    if not name.isidentifier():
+        raise HandlerError("parameter name %r must be a valid identifier" % name)
+    expression = value[1:] if isinstance(value, str) and value.startswith("=") else None
+    if expression is not None:
+        try:
+            quantity = vs.evalExpression(expression)
+        except Exception as e:
+            raise HandlerError("bad expression for %s: %s" % (name, e))
+    elif isinstance(value, str):
+        try:
+            quantity = App.Units.Quantity(value)
+        except Exception:
+            raise HandlerError("can't read %r for %s; use 10, '30 deg' or '=width / 2'"
+                               % (value, name))
+    else:
+        quantity = App.Units.Quantity(float(value), App.Units.Unit("mm") if kind in
+                                      (None, "length") else App.Units.Unit())
+    if not isinstance(quantity, App.Units.Quantity):
+        quantity = App.Units.Quantity(float(quantity))
+    if kind is None:
+        kind = _kind_of(quantity)
+    if kind not in _PARAMETER_TYPES:
+        raise HandlerError("kind must be length, angle or number")
+    if name in vs.PropertiesList and vs.getGroupOfProperty(name) != _PARAMETER_GROUP:
+        raise HandlerError("%r is a reserved name" % name)
+    if name in vs.PropertiesList and vs.getTypeIdOfProperty(name) != _PARAMETER_TYPES[kind]:
+        vs.removeProperty(name)
+    if name not in vs.PropertiesList:
+        vs.addProperty(_PARAMETER_TYPES[kind], name, _PARAMETER_GROUP,
+                       spec.get("comment", ""))
+    if expression is not None:
+        vs.setExpression(name, expression)
+    else:
+        vs.setExpression(name, None)
+        setattr(vs, name, quantity.Value if kind == "number" else quantity)
+
+
+_PARAMETER_UNITS = {"App::PropertyDistance": "mm", "App::PropertyAngle": "deg"}
+
+
+def _parameter_list(vs):
+    vs.Document.recompute()  # evaluate expressions set in this call
+    expressions = dict(vs.ExpressionEngine)
+    out = []
+    for p in _parameter_names(vs):
+        value = getattr(vs, p)
+        out.append({"name": p, "value": _round(getattr(value, "Value", value)),
+                    "unit": _PARAMETER_UNITS.get(vs.getTypeIdOfProperty(p)),
+                    "expression": expressions.get(p),
+                    "comment": vs.getDocumentationOfProperty(p) or None})
+    return out
+
+
+@_mutating("Set parameters")
+def set_parameters(doc, parameters):
+    if not isinstance(parameters, dict) or not parameters:
+        raise HandlerError("pass parameters={'width': 40, 'angle': '30 deg', "
+                           "'half': '=width / 2'}")
+    vs = _parameters(doc, create=True)
+    # Plain values first so expressions can refer to parameters set in the same call.
+    items = sorted(parameters.items(), key=lambda kv: str(
+        kv[1].get("value") if isinstance(kv[1], dict) else kv[1]).startswith("="))
+    for name, spec in items:
+        _set_parameter(vs, name, spec)
+    return {"parameters": _parameter_list(vs)}
+
+
+@_mutating("Delete parameter")
+def delete_parameter(doc, name):
+    vs = _parameters(doc)
+    if vs is None or name not in _parameter_names(vs):
+        raise HandlerError("no parameter %r" % name)
+    vs.removeProperty(name)
+    return {"parameters": _parameter_list(vs)}
+
+
+def get_parameters(document=None):
+    doc = _doc(document)
+    vs = _parameters(doc)
+    expressions = [{"object": o.Name, "property": prop.lstrip("."), "expression": expr}
+                   for o in doc.Objects for prop, expr in o.ExpressionEngine]
+    return {"parameters": _parameter_list(vs) if vs else [], "expressions": expressions}
+
+
+@_mutating("Set expression")
+def set_expression(doc, name, property, expression=None):
+    obj = _obj(doc, name)
+    root = property.split(".")[0].split("[")[0]
+    if root not in obj.PropertiesList:
+        raise HandlerError("%s has no property %r" % (obj.Name, root))
+    if obj.TypeId == "Sketcher::SketchObject" and root == "Constraints" \
+            and not property.startswith("."):
+        property = "." + property
+    try:
+        obj.setExpression(property, expression)
+    except Exception as e:
+        raise HandlerError("bad expression %r: %s" % (expression, e))
+    result = {"name": obj.Name, "property": property.lstrip("."), "expression": expression}
+    if "." not in property.lstrip(".") and "[" not in property:
+        doc.recompute()
+        value = getattr(obj, root)
+        value = getattr(value, "Value", value)
+        result["value"] = _round(value) if isinstance(value, (int, float)) else str(value)
+    return result
+
+
 def _feature_from_sketch(doc, sketch, type_id, label):
     sk = _obj(doc, sketch)
     body = _body_of(sk)
@@ -586,6 +894,47 @@ def revolve(doc, sketch, angle=360.0, axis="V", groove=False, label=None):
     return _finish(doc, feat, body)
 
 
+@_mutating("Loft")
+def loft(doc, sketches, cut=False, ruled=False, closed=False, label=None):
+    if isinstance(sketches, str) or len(sketches) < 2:
+        raise HandlerError("pass at least two sketches=['Sketch', 'Sketch001', ...]")
+    type_id = "PartDesign::SubtractiveLoft" if cut else "PartDesign::AdditiveLoft"
+    body, _, feat = _feature_from_sketch(doc, sketches[0], type_id, label)
+    sections = [_obj(doc, n) for n in sketches[1:]]
+    if any(_body_of(s) is not body for s in sections):
+        raise HandlerError("all loft sketches must be in body %s" % body.Name)
+    feat.Sections = sections
+    for s in sections:
+        _hide(s)
+    feat.Ruled = bool(ruled)
+    feat.Closed = bool(closed)
+    return _finish(doc, feat, body)
+
+
+_SWEEP_MODES = {"standard": "Standard", "fixed": "Fixed", "frenet": "Frenet"}
+_TRANSITIONS = {"transformed": "Transformed", "right": "Right corner", "round": "Round corner"}
+
+
+@_mutating("Sweep")
+def sweep(doc, sketch, path, path_edges=None, cut=False, mode="standard",
+          transition="transformed", label=None):
+    obj_name, _, sub = str(path).partition(":")
+    spine = _obj(doc, obj_name)
+    edges = list(path_edges or []) + ([sub] if sub else [])
+    if mode not in _SWEEP_MODES:
+        raise HandlerError("mode must be standard, fixed or frenet")
+    if transition not in _TRANSITIONS:
+        raise HandlerError("transition must be transformed, right or round")
+    type_id = "PartDesign::SubtractivePipe" if cut else "PartDesign::AdditivePipe"
+    body, _, feat = _feature_from_sketch(doc, sketch, type_id, label)
+    feat.Spine = (spine, edges)
+    feat.Mode = _SWEEP_MODES[mode]
+    feat.Transition = _TRANSITIONS[transition]
+    if spine.TypeId == "Sketcher::SketchObject":
+        _hide(spine)
+    return _finish(doc, feat, body)
+
+
 def _dress_up(doc, type_id, base, edges, label):
     if base:
         base_obj = _obj(doc, base)
@@ -621,6 +970,192 @@ def fillet(doc, edges, radius, base=None, label=None):
 def chamfer(doc, edges, size, base=None, label=None):
     body, feat = _dress_up(doc, "PartDesign::Chamfer", base, edges, label)
     feat.Size = float(size)
+    return _finish(doc, feat, body)
+
+
+@_mutating("Shell")
+def shell(doc, faces, thickness, base=None, outward=False, label=None):
+    if isinstance(faces, str):
+        faces = [faces]
+    if not faces:
+        raise HandlerError("pass faces=['Face6', ...]: the faces to remove (open up)")
+    body, feat = _dress_up(doc, "PartDesign::Thickness", base, faces, label)
+    feat.Value = float(thickness)
+    feat.Reversed = not outward  # FreeCAD's default (Reversed) keeps the outside size
+    return _finish(doc, feat, body)
+
+
+_HOLE_CUTS = {"none": "None", "counterbore": "Counterbore", "countersink": "Countersink",
+              "counterdrill": "Counterdrill"}
+
+
+def _thread_size(feat, thread):
+    """Find the thread type and size for e.g. 'M6', 'M8x1.0', '1/4' (UNC) or 'UNF 1/4'."""
+    text = thread.strip()
+    kind, _, size = text.rpartition(" ")
+    types = [t for t in feat.getEnumerationsOfProperty("ThreadType") if t != "None"]
+    if kind:
+        match = [t for t in types if t.lower() == kind.lower()]
+        if not match:
+            raise HandlerError("unknown thread type %r (use %s)" % (kind, ", ".join(types)))
+        types = match
+    for t in types:
+        feat.ThreadType = t
+        sizes = feat.getEnumerationsOfProperty("ThreadSize")
+        if size in sizes:
+            return t, size
+        # 'M6' means the coarse pitch: M6x1.0
+        coarse = [s for s in sizes if s.startswith(size + "x")]
+        if coarse and t == "ISOMetricProfile":
+            return t, coarse[0]
+    raise HandlerError("unknown thread size %r; e.g. 'M6', 'M8x1.0' (fine), '1/4' (UNC), "
+                       "'UNF 1/4'" % thread)
+
+
+@_mutating("Hole")
+def hole(doc, sketch, diameter=None, depth=10.0, through_all=False, thread=None,
+         tapped=False, modeled_thread=False, fit=None, cut=None, cut_diameter=None,
+         cut_depth=None, countersink_angle=None, flat_bottom=False, reversed=False,
+         label=None):
+    sk = _obj(doc, sketch)
+    circles = [g for i, g in enumerate(getattr(sk, "Geometry", []))
+               if type(g).__name__ == "Circle" and not sk.getConstruction(i)]
+    if not circles:
+        raise HandlerError("%s has no circles; a hole is drilled at each circle's centre"
+                           % sk.Name)
+    body, _, feat = _feature_from_sketch(doc, sketch, "PartDesign::Hole", label)
+    if thread:
+        feat.ThreadType, feat.ThreadSize = _thread_size(feat, thread)
+        feat.Threaded = bool(tapped or modeled_thread)
+        feat.ModelThread = bool(modeled_thread)
+        if fit:
+            fits = feat.getEnumerationsOfProperty("ThreadFit")
+            if fit not in fits:
+                raise HandlerError("fit for %s must be one of %s"
+                                   % (feat.ThreadType, ", ".join(fits)))
+            feat.ThreadFit = fit
+    elif diameter is None:
+        feat.Diameter = 2 * circles[0].Radius
+    if diameter is not None:
+        feat.Diameter = float(diameter)
+    if through_all:
+        feat.DepthType = "ThroughAll"
+    else:
+        feat.DepthType = "Dimension"
+        feat.Depth = float(depth)
+    feat.DrillPoint = "Flat" if flat_bottom else "Angled"
+    if cut:
+        cut_type = _HOLE_CUTS.get(str(cut).lower())
+        if cut_type is None:
+            raise HandlerError("cut must be counterbore, countersink or counterdrill")
+        feat.HoleCutType = cut_type
+        if cut_diameter is not None or cut_depth is not None or countersink_angle is not None:
+            feat.HoleCutCustomValues = True
+        if cut_diameter is not None:
+            feat.HoleCutDiameter = float(cut_diameter)
+        if cut_depth is not None:
+            feat.HoleCutDepth = float(cut_depth)
+        if countersink_angle is not None:
+            feat.HoleCutCountersinkAngle = float(countersink_angle)
+    feat.Reversed = bool(reversed)
+    result = _finish(doc, feat, body)
+    result.update({"holes": len(circles), "diameter": _round(feat.Diameter.Value)})
+    if thread:
+        result["thread"] = "%s %s" % (feat.ThreadType, feat.ThreadSize)
+    if feat.HoleCutType != "None":
+        result["cut"] = {"type": feat.HoleCutType,
+                         "diameter": _round(feat.HoleCutDiameter.Value),
+                         "depth": _round(feat.HoleCutDepth.Value)}
+    return result
+
+
+_ORIGIN_ROLES = {"X": "X_Axis", "Y": "Y_Axis", "Z": "Z_Axis",
+                 "XY": "XY_Plane", "XZ": "XZ_Plane", "YZ": "YZ_Plane"}
+
+
+def _reference(doc, body, ref):
+    """'X'/'Y'/'Z', 'XY'/'XZ'/'YZ' (body origin), 'Pad:Face3', 'Sketch:H_Axis' or a datum."""
+    key = str(ref).upper()
+    if key in _ORIGIN_ROLES:
+        role = _ORIGIN_ROLES[key]
+        return (next(f for f in body.Origin.OriginFeatures if f.Role == role), [""])
+    obj_name, _, sub = str(ref).partition(":")
+    return (_obj(doc, obj_name), [sub] if sub else [""])
+
+
+def _transformed(doc, type_id, features, whole_body, label):
+    if isinstance(features, str):
+        features = [features]
+    if features:
+        originals = [_obj(doc, n) for n in features]
+        body = _body_of(originals[0])
+        if body is None or any(_body_of(o) is not body for o in originals):
+            raise HandlerError("features must all be in the same PartDesign body")
+    else:
+        body = _resolve_body(doc, None)
+        if body.Tip is None:
+            raise HandlerError("the body has no features to copy")
+        originals = [body.Tip]
+    feat = body.newObject(type_id, type_id.split("::")[1])
+    if label:
+        feat.Label = label
+    if whole_body:
+        feat.TransformMode = "Whole shape"
+    else:
+        feat.Originals = originals
+    return body, feat
+
+
+@_mutating("Mirror")
+def mirror(doc, plane="YZ", features=None, whole_body=False, label=None):
+    body, feat = _transformed(doc, "PartDesign::Mirrored", features, whole_body, label)
+    feat.MirrorPlane = _reference(doc, body, plane)
+    return _finish(doc, feat, body)
+
+
+def _set_direction(feat, suffix, count, spacing, length):
+    count = int(count)
+    if count < 2:
+        raise HandlerError("count must be at least 2 (it includes the original)")
+    setattr(feat, "Occurrences" + suffix, count)
+    # -1 = "use the default spacing". FreeCAD 1.1 leaves Spacings2 at [0.0], which
+    # stacks every copy in the second direction on top of the first row.
+    setattr(feat, "Spacings" + suffix, [-1.0] * (count - 1))
+    if spacing is not None:
+        setattr(feat, "Mode" + suffix, "Spacing")
+        setattr(feat, "Offset" + suffix, float(spacing))
+    elif length is not None:
+        setattr(feat, "Mode" + suffix, "Extent")
+        setattr(feat, "Length" + suffix, float(length))
+    else:
+        raise HandlerError("pass spacing= (between copies) or length= (whole pattern)")
+
+
+@_mutating("Linear pattern")
+def linear_pattern(doc, direction, count, spacing=None, length=None, features=None,
+                   reversed=False, direction2=None, count2=None, spacing2=None,
+                   length2=None, whole_body=False, label=None):
+    body, feat = _transformed(doc, "PartDesign::LinearPattern", features, whole_body, label)
+    feat.Direction = _reference(doc, body, direction)
+    _set_direction(feat, "", count, spacing, length)
+    feat.Reversed = bool(reversed)
+    if direction2:
+        feat.Direction2 = _reference(doc, body, direction2)
+        _set_direction(feat, "2", count2 or 2, spacing2, length2)
+    return _finish(doc, feat, body)
+
+
+@_mutating("Polar pattern")
+def polar_pattern(doc, count, axis="Z", angle=360.0, features=None, reversed=False,
+                  whole_body=False, label=None):
+    body, feat = _transformed(doc, "PartDesign::PolarPattern", features, whole_body, label)
+    feat.Axis = _reference(doc, body, axis)
+    if int(count) < 2:
+        raise HandlerError("count must be at least 2 (it includes the original)")
+    feat.Occurrences = int(count)
+    feat.Mode = "Extent"
+    feat.Angle = float(angle)
+    feat.Reversed = bool(reversed)
     return _finish(doc, feat, body)
 
 
@@ -808,7 +1343,40 @@ def screenshot(view=None, width=1024, height=768, fit=False):
 
 _EXPORT_FORMATS = {".step": "step", ".stp": "step", ".iges": "iges", ".igs": "iges",
                    ".stl": "stl", ".obj": "obj", ".brep": "brep", ".brp": "brep",
-                   ".fcstd": "fcstd"}
+                   ".fcstd": "fcstd", ".dxf": "dxf"}
+
+
+def _flat_outline(shape):
+    """The largest planar face of a shape, laid onto XY with its corner at the origin."""
+    faces = [f for f in shape.Faces if type(f.Surface).__name__ == "Plane"]
+    if not faces:
+        raise HandlerError("DXF export needs a flat part (a plate or flat pattern)")
+    face = max(faces, key=lambda f: f.Area)
+    u0, u1, v0, v1 = face.ParameterRange
+    normal = face.normalAt((u0 + u1) / 2, (v0 + v1) / 2)
+    flat = face.copy()
+    flat.transformShape(App.Placement(V(), App.Rotation(normal, V(0, 0, 1))).toMatrix())
+    bb = flat.BoundBox
+    flat.translate(V(-bb.XMin, -bb.YMin, -bb.ZMin))
+    return flat
+
+
+def _export_dxf(doc, objs, path):
+    import Part
+    import importDXF
+
+    edges, x = [], 0.0
+    for o in objs:
+        flat = _flat_outline(o.Shape)
+        flat.translate(V(x, 0, 0))
+        edges += flat.Edges
+        x = flat.BoundBox.XMax + 10  # side by side, 10 mm apart
+    tmp = doc.addObject("Part::Feature", "DXFExport")
+    try:
+        tmp.Shape = Part.Compound(edges)
+        importDXF.export([tmp], path)
+    finally:
+        doc.removeObject(tmp.Name)
 
 
 def export(path, objects=None, document=None):
@@ -833,7 +1401,9 @@ def export(path, objects=None, document=None):
     if not objs:
         raise HandlerError("nothing to export")
 
-    if fmt in ("step", "iges"):
+    if fmt == "dxf":
+        _export_dxf(doc, objs, path)
+    elif fmt in ("step", "iges"):
         import Import
         Import.export(objs, path)
     elif fmt in ("stl", "obj"):
@@ -897,9 +1467,11 @@ def run_python(code, document=None):
 
 HANDLERS = {fn.__name__: fn for fn in [
     ping, list_documents, new_document, open_document, save_document, close_document,
-    activate_document, list_objects, get_object, get_topology,
-    create_body, create_sketch, add_sketch_geometry, pad, pocket, revolve, fillet, chamfer,
-    press_pull,
+    activate_document, list_objects, get_object, get_topology, measure,
+    create_body, create_sketch, add_sketch_geometry, set_dimension, delete_sketch_geometry,
+    move_sketch_geometry, set_parameters, delete_parameter, get_parameters, set_expression,
+    pad, pocket, revolve, fillet, chamfer,
+    press_pull, hole, shell, mirror, linear_pattern, polar_pattern, loft, sweep,
     set_property, delete_object, get_timeline, roll_timeline, suppress_feature,
     recompute, undo, redo,
     set_view, screenshot, export, import_file, run_python,

@@ -212,6 +212,299 @@ result = {"seen": seen, "order": [o.Name for o in op.body.Group], "new": op.feat
     assert not out["invalid"]
 
 
+def _block(freecad, name, width=40, depth=20, height=10):
+    """A centred width x depth x height box; returns its Pad's name."""
+    freecad.call("new_document", name=name)
+    sk = freecad.call("create_sketch", geometry=[
+        {"type": "rectangle", "center": [0, 0], "width": width, "height": depth}])
+    return freecad.call("pad", sketch=sk["sketch"], length=height)["feature"]
+
+
+def _hole_sketch(freecad, base, centers, radius=1):
+    return freecad.call("create_sketch", face=_face(freecad, base, [0, 0, 1]), geometry=[
+        {"type": "circle", "center": c, "radius": radius} for c in centers])["sketch"]
+
+
+def test_hole_plain_takes_sketch_diameter(freecad):
+    base = _block(freecad, "HolePlain")
+    sk = _hole_sketch(freecad, base, [[-10, 0], [10, 0]], radius=3)
+    h = freecad.call("hole", sketch=sk, depth=5, flat_bottom=True)
+    assert "errors" not in h
+    assert h["holes"] == 2 and h["diameter"] == pytest.approx(6)
+    assert h["shape"]["volume"] == pytest.approx(8000 - 2 * math.pi * 9 * 5, rel=1e-6)
+    # Drilled into the solid, not out of the top.
+    assert h["shape"]["bound_box"]["max"][2] == pytest.approx(10)
+
+
+def test_hole_thread_presets(freecad):
+    base = _block(freecad, "HoleThread")
+    sk = _hole_sketch(freecad, base, [[0, 0]])
+    clearance = freecad.call("hole", sketch=sk, thread="M6", through_all=True)
+    assert clearance["thread"] == "ISOMetricProfile M6x1.0"
+    assert clearance["diameter"] == pytest.approx(6.6)  # medium fit clearance
+    assert clearance["shape"]["volume"] == pytest.approx(8000 - math.pi * 3.3 ** 2 * 10,
+                                                         rel=1e-6)
+
+    freecad.call("undo")
+    tapped = freecad.call("hole", sketch=sk, thread="M6", tapped=True, through_all=True,
+                          cut="counterbore")
+    assert tapped["diameter"] == pytest.approx(5.0)  # tap drill
+    assert tapped["cut"]["type"] == "Counterbore" and tapped["cut"]["diameter"] > 6
+
+    freecad.call("undo")
+    fine = freecad.call("hole", sketch=sk, thread="M8x1.0", through_all=True)
+    assert fine["thread"] == "ISOMetricFineProfile M8x1.0"
+    freecad.call("undo")
+    unc = freecad.call("hole", sketch=sk, thread="UNC 1/4", through_all=True)
+    assert unc["thread"] == "UNC 1/4"
+
+    with pytest.raises(BridgeError, match="unknown thread size"):
+        freecad.call("hole", sketch=sk, thread="M7.3")
+    with pytest.raises(BridgeError, match="no circles"):
+        freecad.call("hole", sketch="Sketch")
+
+
+def test_shell(freecad):
+    base = _block(freecad, "Shell")
+    top = _face(freecad, base, [0, 0, 1]).split(":")[1]
+    inward = freecad.call("shell", faces=[top], thickness=1)
+    assert "errors" not in inward
+    assert inward["shape"]["volume"] == pytest.approx(8000 - 38 * 18 * 9, rel=1e-6)
+    assert inward["shape"]["bound_box"]["max"][0] == pytest.approx(20)
+
+    freecad.call("undo")
+    outward = freecad.call("shell", faces=[top], thickness=1, outward=True)
+    assert outward["shape"]["bound_box"]["max"][0] == pytest.approx(21)
+
+
+def _boss(freecad, base, center, radius=2, height=5):
+    sk = freecad.call("create_sketch", face=_face(freecad, base, [0, 0, 1]), geometry=[
+        {"type": "circle", "center": center, "radius": radius}])
+    return freecad.call("pad", sketch=sk["sketch"], length=height)["feature"]
+
+
+def test_mirror(freecad):
+    base = _block(freecad, "Mirror")
+    boss = _boss(freecad, base, [12, 0])
+    one_boss = 8000 + math.pi * 4 * 5
+    m = freecad.call("mirror", plane="YZ")
+    assert "errors" not in m
+    assert m["shape"]["volume"] == pytest.approx(one_boss + math.pi * 4 * 5, rel=1e-6)
+    assert m["shape"]["solids"] == 1
+
+    freecad.call("undo")
+    m = freecad.call("mirror", plane="XY", whole_body=True)
+    assert m["shape"]["bound_box"]["min"][2] == pytest.approx(-15)
+    assert m["shape"]["volume"] == pytest.approx(2 * one_boss, rel=1e-6)
+
+    freecad.call("undo")
+    # Mirror across a face of the solid: the boss copied below the bottom face.
+    bottom = _face(freecad, base, [0, 0, -1])
+    m = freecad.call("mirror", plane=bottom, features=[boss])
+    assert m["shape"]["solids"] == 2  # the copy floats below, not touching the body
+
+
+def test_linear_pattern(freecad):
+    base = _block(freecad, "Linear", width=60)
+    _boss(freecad, base, [-25, -5], radius=1)
+    boss_volume = math.pi * 5
+    p = freecad.call("linear_pattern", direction="X", count=6, spacing=10)
+    assert "errors" not in p
+    assert p["shape"]["volume"] == pytest.approx(60 * 20 * 10 + 6 * boss_volume, rel=1e-6)
+
+    freecad.call("undo")
+    grid = freecad.call("linear_pattern", direction="X", count=3, length=40,
+                        direction2="Y", count2=2, spacing2=10)
+    assert grid["shape"]["volume"] == pytest.approx(60 * 20 * 10 + 6 * boss_volume, rel=1e-6)
+    assert grid["shape"]["bound_box"]["max"][1] == pytest.approx(10)
+
+    with pytest.raises(BridgeError, match="spacing= .* or length="):
+        freecad.call("linear_pattern", direction="X", count=3)
+
+
+def test_polar_pattern(freecad):
+    freecad.call("new_document", name="Polar")
+    disc = freecad.call("create_sketch", geometry=[{"type": "circle", "center": [0, 0],
+                                                    "radius": 20}])
+    base = freecad.call("pad", sketch=disc["sketch"], length=5)["feature"]
+    holes = _hole_sketch(freecad, base, [[15, 0]], radius=2)
+    freecad.call("pocket", sketch=holes, through_all=True)
+    p = freecad.call("polar_pattern", count=6)
+    assert "errors" not in p
+    assert p["shape"]["volume"] == pytest.approx(math.pi * 5 * (400 - 6 * 4), rel=1e-6)
+
+    freecad.call("undo")
+    half = freecad.call("polar_pattern", count=3, angle=180, axis="Z")
+    assert half["shape"]["volume"] == pytest.approx(math.pi * 5 * (400 - 3 * 4), rel=1e-6)
+
+
+def test_loft(freecad):
+    freecad.call("new_document", name="Loft")
+    square = freecad.call("create_sketch", geometry=[
+        {"type": "rectangle", "center": [0, 0], "width": 20, "height": 20}])["sketch"]
+    small = freecad.call("create_sketch", offset=10, geometry=[
+        {"type": "rectangle", "center": [0, 0], "width": 10, "height": 10}])["sketch"]
+    lo = freecad.call("loft", sketches=[square, small], ruled=True)
+    assert "errors" not in lo
+    # Ruled loft between squares = frustum: h/3 (A1 + A2 + sqrt(A1 A2)).
+    assert lo["shape"]["volume"] == pytest.approx(10 / 3 * (400 + 100 + 200), rel=1e-6)
+
+    top = freecad.call("create_sketch", offset=10, geometry=[
+        {"type": "circle", "center": [0, 0], "radius": 2}])["sketch"]
+    bottom = freecad.call("create_sketch", offset=5, geometry=[
+        {"type": "circle", "center": [0, 0], "radius": 1}])["sketch"]
+    cut = freecad.call("loft", sketches=[top, bottom], cut=True, ruled=True)
+    assert "errors" not in cut
+    cone = math.pi * 5 / 3 * (4 + 1 + 2)
+    assert cut["shape"]["volume"] == pytest.approx(lo["shape"]["volume"] - cone, rel=1e-6)
+
+    with pytest.raises(BridgeError, match="at least two"):
+        freecad.call("loft", sketches=[square])
+
+
+def test_sweep(freecad):
+    freecad.call("new_document", name="Sweep")
+    profile = freecad.call("create_sketch", geometry=[
+        {"type": "circle", "center": [0, 0], "radius": 2}])["sketch"]
+    # Path in XZ: straight up 20, then a quarter turn of radius 10.
+    path = freecad.call("create_sketch", plane="XZ", geometry=[
+        {"type": "line", "start": [0, 0], "end": [0, 20]},
+        {"type": "arc", "center": [10, 20], "radius": 10, "start_angle": 90,
+         "end_angle": 180}])["sketch"]
+    sw = freecad.call("sweep", sketch=profile, path=path)
+    assert "errors" not in sw
+    assert sw["shape"]["volume"] == pytest.approx(math.pi * 4 * (20 + math.pi * 5), rel=1e-6)
+
+    freecad.call("undo")
+    straight = freecad.call("sweep", sketch=profile, path=path + ":Edge1")
+    assert straight["shape"]["volume"] == pytest.approx(math.pi * 4 * 20, rel=1e-6)
+
+
+def test_measure(freecad):
+    base = _block(freecad, "Measure")
+    hole = freecad.call("hole", sketch=_hole_sketch(freecad, base, [[10, 0]], radius=2),
+                        through_all=True)
+    feat = hole["feature"]
+    top, bottom = _face(freecad, feat, [0, 0, 1]), _face(freecad, feat, [0, 0, -1])
+    gap = freecad.call("measure", a=top, b=bottom)
+    assert gap["distance"] == pytest.approx(10)
+    assert gap["plane_distance"] == pytest.approx(10)
+    assert gap["angle"] == pytest.approx(180)
+
+    side = _face(freecad, feat, [1, 0, 0])
+    assert freecad.call("measure", a=top, b=side)["angle"] == pytest.approx(90)
+
+    topo = freecad.call("get_topology", name=feat)
+    rim = next(e["name"] for e in topo["edges"] if e.get("radius") == pytest.approx(2))
+    edge = freecad.call("measure", a="%s:%s" % (feat, rim))
+    assert edge["diameter"] == pytest.approx(4)
+    # Hole axis at x=10 to the side face at x=20, measured from the rim edge.
+    assert freecad.call("measure", a="%s:%s" % (feat, rim), b=side)["distance"] \
+        == pytest.approx(8)
+
+    whole = freecad.call("measure", a=feat)
+    assert whole["volume"] == pytest.approx(8000 - math.pi * 4 * 10, rel=1e-6)
+    with pytest.raises(BridgeError, match="has no Face99"):
+        freecad.call("measure", a=feat + ":Face99")
+
+
+def test_sketch_editing(freecad):
+    freecad.call("new_document", name="SketchEdit")
+    sk = freecad.call("create_sketch", geometry=[
+        {"type": "rectangle", "center": [0, 0], "width": 40, "height": 20},
+        {"type": "circle", "center": [0, 0], "radius": 3},
+        {"type": "line", "start": [30, 0], "end": [40, 0]}])
+    name = sk["sketch"]
+    info = freecad.call("get_object", name=name)["sketch"]
+    width = next(c["index"] for c in info["constraints"]
+                 if c["type"] == "DistanceX" and c["value"] == pytest.approx(40))
+
+    r = freecad.call("set_dimension", sketch=name, constraint=width, value=50, name="width")
+    assert r["solver_ok"]
+    widths = [c for c in r["sketch_info"]["constraints"] if c["name"] == "width"]
+    assert widths[0]["value"] == pytest.approx(50)
+
+    # By name now; the stray line goes, the circle moves.
+    freecad.call("delete_sketch_geometry", sketch=name, geometry=[5])
+    moved = freecad.call("move_sketch_geometry", sketch=name, index=4, point="center",
+                         to=[10, 2])
+    circle = moved["sketch_info"]["geometry"][4]
+    assert len(moved["sketch_info"]["geometry"]) == 5
+    assert circle["center"] == pytest.approx([10, 2])
+
+    pad = freecad.call("pad", sketch=name, length=5)
+    assert pad["shape"]["volume"] == pytest.approx((50 * 20 - math.pi * 9) * 5, rel=1e-6)
+
+    with pytest.raises(BridgeError, match="no constraint named 'nope'"):
+        freecad.call("set_dimension", sketch=name, constraint="nope", value=1)
+    with pytest.raises(BridgeError, match="not a dimension"):
+        freecad.call("set_dimension", sketch=name, constraint=0, value=1)
+
+
+def test_parameters_drive_the_model(freecad):
+    freecad.call("new_document", name="Params")
+    p = freecad.call("set_parameters", parameters={
+        "width": 40, "thickness": "5 mm", "half": "=width / 2", "tilt": "30 deg",
+        "count": {"value": 4, "kind": "number"}})
+    by_name = {x["name"]: x for x in p["parameters"]}
+    assert by_name["half"]["expression"] == "width / 2"
+    assert by_name["half"]["value"] == pytest.approx(20) and by_name["half"]["unit"] == "mm"
+    assert by_name["tilt"]["value"] == pytest.approx(30) and by_name["tilt"]["unit"] == "deg"
+    assert by_name["count"]["value"] == 4 and by_name["count"]["unit"] is None
+
+    sk = freecad.call("create_sketch", geometry=[
+        {"type": "rectangle", "corner": [0, 0], "width": 40, "height": 20}])
+    info = freecad.call("get_object", name=sk["sketch"])["sketch"]
+    width = next(c["index"] for c in info["constraints"] if c["type"] == "DistanceX")
+    freecad.call("set_dimension", sketch=sk["sketch"], constraint=width, name="w",
+                 expression="Parameters.width")
+    pad = freecad.call("pad", sketch=sk["sketch"], length=1)
+    e = freecad.call("set_expression", name=pad["feature"], property="Length",
+                     expression="Parameters.thickness")
+    assert e["value"] == pytest.approx(5)
+    assert freecad.call("get_object", name=pad["feature"])["shape"]["volume"] \
+        == pytest.approx(40 * 20 * 5)
+
+    # Change a parameter: the sketch and the pad follow.
+    freecad.call("set_parameters", parameters={"width": 60, "thickness": 2})
+    body = freecad.call("get_object", name=pad["body"])
+    assert body["shape"]["volume"] == pytest.approx(60 * 20 * 2)
+    exprs = freecad.call("get_parameters")["expressions"]
+    assert {"object": sk["sketch"], "property": "Constraints.w",
+            "expression": "Parameters.width"} in exprs
+    assert next(x for x in freecad.call("get_parameters")["parameters"]
+                if x["name"] == "half")["value"] == pytest.approx(30)
+
+    # A plain value replaces an expression.
+    freecad.call("set_dimension", sketch=sk["sketch"], constraint="w", value=10)
+    assert freecad.call("get_object", name=pad["body"])["shape"]["volume"] \
+        == pytest.approx(10 * 20 * 2)
+
+    with pytest.raises(BridgeError, match="reserved"):
+        freecad.call("set_parameters", parameters={"Label": 3})
+    freecad.call("delete_parameter", name="count")
+    assert "count" not in [x["name"] for x in freecad.call("get_parameters")["parameters"]]
+
+
+def test_export_dxf_outline(freecad, tmp_path):
+    base = _block(freecad, "Dxf", height=2)
+    freecad.call("hole", sketch=_hole_sketch(freecad, base, [[10, 0]], radius=3),
+                 through_all=True)
+    out = tmp_path / "plate.dxf"
+    freecad.call("export", path=str(out))
+    lines = [s.strip() for s in out.read_text().splitlines()]
+    start = lines.index("ENTITIES")
+    lines = lines[start:lines.index("ENDSEC", start)]
+    entities = [lines[i + 1] for i, s in enumerate(lines[:-1]) if s == "0"]
+    assert entities.count("LINE") == 4 and entities.count("CIRCLE") == 1
+    # 2D: one outline at z=0, not the top and bottom of the plate.
+    zs = {float(lines[i + 1]) for i, s in enumerate(lines[:-1]) if s == "30"}
+    assert zs <= {0.0}
+    # The temporary export object is gone again.
+    assert not any(o["name"].startswith("DXFExport")
+                   for o in freecad.call("list_objects")["objects"])
+
+
 def test_run_python(freecad):
     out = freecad.call("run_python", code="print('hi')\nresult = {'n': len(App.listDocuments())}")
     assert out["stdout"] == "hi\n"

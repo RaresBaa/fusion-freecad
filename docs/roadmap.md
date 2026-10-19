@@ -6,10 +6,12 @@
 - [x] MCP server: documents, sketches, pad/pocket/revolve, fillet/chamfer, topology,
       properties, undo/redo, screenshots, STEP/STL export, `run_python`
 - [x] Headless integration tests against real FreeCAD
-- [ ] More features: hole (with thread presets), patterns, mirror, shell, loft, sweep
+- [x] Hole (with thread presets, counterbore/countersink), linear and polar patterns,
+      mirror, shell
+- [x] Loft, sweep (join or cut)
 - [ ] Assemblies (FreeCAD 1.x Assembly workbench): insert parts, joints
-- [ ] Sketch editing: move/delete geometry, named dimensions, expressions/parameters
-- [ ] Measurements (distance, angle) as tools
+- [x] Sketch editing: move/delete geometry, named dimensions, expressions/parameters
+- [x] Measurements (distance, angle) as tools
 
 ## 2. Fusion workbench basics
 
@@ -53,7 +55,7 @@
       any command
 - [x] Patch for SearchBar's FreeCAD 1.1 crash (drop when upstream #47 is fixed)
 - [ ] Bind S to SearchBar's search-at-cursor (MouseBar)
-- [ ] Sheet metal flat pattern export to DXF as a tool
+- [x] Sheet metal flat pattern export to DXF (`export` to `.dxf`, any flat part)
 - [ ] Test the Nix flake on NixOS
 
 ## Open questions

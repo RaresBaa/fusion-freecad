@@ -20,8 +20,8 @@ Drive a live FreeCAD session for parametric part modelling (PartDesign).
 
 Units are millimetres and degrees. Typical flow:
   new_document -> create_sketch (on XY/XZ/YZ or on a face like "Pad:Face6")
-  -> pad / pocket / revolve -> get_topology to find edge names -> fillet / chamfer
-  -> screenshot to check the result -> export (STEP/STL).
+  -> pad / pocket / revolve / hole -> get_topology to find edge names -> fillet / chamfer
+  (shell, mirror, linear_pattern, polar_pattern copy or hollow features) -> screenshot to check the result -> export (STEP/STL).
 
 Sketch geometry indices start at 0 in the order shapes are added; a rectangle or
 polygon adds one line per side. Face and edge names (Face1, Edge7) come from
@@ -107,6 +107,18 @@ def get_topology(name: str, document: Doc = None,
     return client.call("get_topology", name=name, document=document, max_items=max_items)
 
 
+@mcp.tool()
+def measure(a: Annotated[str, Field(
+                description="Object or element, e.g. 'Pad', 'Pad:Face6', 'Pad:Edge3', "
+                            "'Pad:Vertex1'")],
+            b: Annotated[str | None, Field(description="Second element to measure to")] = None,
+            document: Doc = None) -> dict[str, Any]:
+    """Measure (Fusion: Inspect > Measure). One element: length, area, radius/diameter,
+    point or volume. Two: minimum distance, closest points, and the angle between
+    planar faces / straight edges (plus plane_distance when the faces are parallel)."""
+    return client.call("measure", a=a, b=b, document=document)
+
+
 # --- modelling ---------------------------------------------------------------
 
 @mcp.tool()
@@ -169,6 +181,100 @@ def add_sketch_geometry(
                        constraints=constraints, document=document)
 
 
+Constraint = Annotated[int | str, Field(
+    description="Constraint index or name (see get_object on the sketch)")]
+
+
+@mcp.tool()
+def set_dimension(sketch: str, constraint: Constraint,
+                  value: Annotated[float | None, Field(
+                      description="New size: mm, or degrees for angles")] = None,
+                  expression: Annotated[str | None, Field(
+                      description="Drive it by an expression instead, e.g. "
+                                  "'Parameters.width / 2'")] = None,
+                  name: Annotated[str | None, Field(
+                      description="Name the constraint, so expressions can use "
+                                  "Sketch.Constraints.<name>")] = None,
+                  document: Doc = None) -> dict[str, Any]:
+    """Change, name, or bind to an expression a sketch dimension (Fusion: edit a sketch
+    dimension). A plain value replaces any expression. Returns the solved sketch."""
+    return client.call("set_dimension", sketch=sketch, constraint=constraint, value=value,
+                       expression=expression, name=name, document=document)
+
+
+@mcp.tool()
+def delete_sketch_geometry(sketch: str,
+                           geometry: Annotated[list[int] | None, Field(
+                               description="Geometry indices to delete (their "
+                                           "constraints go too)")] = None,
+                           constraints: Annotated[list[int | str] | None, Field(
+                               description="Constraint indices or names to delete")] = None,
+                           document: Doc = None) -> dict[str, Any]:
+    """Delete geometry and/or constraints from a sketch. Later indices shift down;
+    the result lists the sketch's geometry and constraints afterwards."""
+    return client.call("delete_sketch_geometry", sketch=sketch, geometry=geometry,
+                       constraints=constraints, document=document)
+
+
+@mcp.tool()
+def move_sketch_geometry(sketch: str, index: int,
+                         to: Annotated[Point2, Field(description="[x, y] in sketch mm")],
+                         point: Annotated[Literal["edge", "start", "end", "center"], Field(
+                             description="Which point to drag; 'edge' moves the whole "
+                                         "shape")] = "edge",
+                         relative: Annotated[bool, Field(
+                             description="Move by `to` instead of to it")] = False,
+                         document: Doc = None) -> dict[str, Any]:
+    """Drag sketch geometry, like dragging it in the sketcher: the solver keeps the
+    constraints, so constrained geometry moves only where it is free to."""
+    return client.call("move_sketch_geometry", sketch=sketch, index=index, to=to,
+                       point=point, relative=relative, document=document)
+
+
+# --- parameters --------------------------------------------------------------
+
+@mcp.tool()
+def set_parameters(parameters: Annotated[dict[str, Any], Field(
+        description="name -> value. Numbers are mm; strings can carry units ('30 deg', "
+                    "'5 mm') or start with '=' for an expression of other parameters "
+                    "('=width / 2'). For a plain number use {'value': 4, 'kind': "
+                    "'number'}; kind is length, angle or number. Add 'comment' too if "
+                    "useful.")],
+        document: Doc = None) -> dict[str, Any]:
+    """Create or change user parameters (Fusion: Change Parameters). They live in the
+    document's 'Parameters' object; use them in expressions as Parameters.<name>,
+    via set_expression or set_dimension(expression=...)."""
+    return client.call("set_parameters", parameters=parameters, document=document)
+
+
+@mcp.tool()
+def get_parameters(document: Doc = None) -> dict[str, Any]:
+    """List user parameters and every expression in the document (what drives what)."""
+    return client.call("get_parameters", document=document)
+
+
+@mcp.tool()
+def delete_parameter(name: str, document: Doc = None) -> dict[str, Any]:
+    """Delete a user parameter."""
+    return client.call("delete_parameter", name=name, document=document)
+
+
+@mcp.tool()
+def set_expression(name: Annotated[str, Field(description="Object, e.g. 'Pad'")],
+                   property: Annotated[str, Field(
+                       description="Property, e.g. 'Length', 'Radius', "
+                                   "'Placement.Base.x', or a sketch's "
+                                   "'Constraints.width'")],
+                   expression: Annotated[str | None, Field(
+                       description="e.g. 'Parameters.thickness * 2' or "
+                                   "'Sketch.Constraints.width / 3'; null removes "
+                                   "it")] = None,
+                   document: Doc = None) -> dict[str, Any]:
+    """Make a property follow an expression so it updates when parameters change."""
+    return client.call("set_expression", name=name, property=property,
+                       expression=expression, document=document)
+
+
 @mcp.tool()
 def pad(sketch: str, length: float = 10.0, reversed: bool = False, midplane: bool = False,
         up_to_face: Annotated[str | None, Field(
@@ -199,6 +305,41 @@ def revolve(sketch: str, angle: float = 360.0,
     """Revolve a sketch around an axis (Fusion: Revolve)."""
     return client.call("revolve", sketch=sketch, angle=angle, axis=axis, groove=groove,
                        label=label, document=document)
+
+
+@mcp.tool()
+def loft(sketches: Annotated[list[str], Field(
+             description="Profile sketches in order, e.g. on parallel planes made with "
+                         "create_sketch(offset=...)")],
+         cut: Annotated[bool, Field(description="Remove material instead")] = False,
+         ruled: Annotated[bool, Field(
+             description="Straight sides between sections instead of smooth")] = False,
+         closed: Annotated[bool, Field(description="Loop back to the first profile")] = False,
+         label: str | None = None, document: Doc = None) -> dict[str, Any]:
+    """Blend between two or more profiles (Fusion: Loft)."""
+    return client.call("loft", sketches=sketches, cut=cut, ruled=ruled, closed=closed,
+                       label=label, document=document)
+
+
+@mcp.tool()
+def sweep(sketch: Annotated[str, Field(description="Closed profile sketch")],
+          path: Annotated[str, Field(
+              description="Path: a sketch of connected lines/arcs (all its edges), or one "
+                          "edge like 'Sketch001:Edge1' or 'Pad:Edge3'")],
+          path_edges: Annotated[list[str] | None, Field(
+              description="More edges of the path object, e.g. ['Edge2', 'Edge3']")] = None,
+          cut: Annotated[bool, Field(description="Remove material instead")] = False,
+          mode: Annotated[Literal["standard", "fixed", "frenet"], Field(
+              description="How the profile turns along the path; frenet for helices")]
+              = "standard",
+          transition: Annotated[Literal["transformed", "right", "round"], Field(
+              description="Corner handling where path segments meet at an angle")]
+              = "transformed",
+          label: str | None = None, document: Doc = None) -> dict[str, Any]:
+    """Sweep a profile along a path (Fusion: Sweep). Draw the path in a sketch on a
+    plane perpendicular to the profile, starting where the profile is."""
+    return client.call("sweep", sketch=sketch, path=path, path_edges=path_edges, cut=cut,
+                       mode=mode, transition=transition, label=label, document=document)
 
 
 @mcp.tool()
@@ -236,6 +377,117 @@ def chamfer(edges: Edges, size: float,
     """Bevel edges of the solid."""
     return client.call("chamfer", edges=edges, size=size, base=base, label=label,
                        document=document)
+
+
+@mcp.tool()
+def hole(sketch: Annotated[str, Field(
+             description="Sketch with circles; a hole is drilled at each circle's centre "
+                         "(sketch on the face to drill into)")],
+         diameter: Annotated[float | None, Field(
+             description="Drill diameter; defaults to the thread's size, else the first "
+                         "circle's")] = None,
+         depth: float = 10.0,
+         through_all: bool = False,
+         thread: Annotated[str | None, Field(
+             description="Thread preset: 'M6' (ISO coarse), 'M8x1.0' (ISO fine), "
+                         "'UNC 1/4', 'UNF #10', 'NPT 1/8', ... Without tapped this sizes "
+                         "a clearance hole for that screw")] = None,
+         tapped: Annotated[bool, Field(
+             description="Threaded hole (tap drill size, thread marked) instead of a "
+                         "clearance hole")] = False,
+         modeled_thread: Annotated[bool, Field(
+             description="Model the thread geometry (slow; for 3D printing)")] = False,
+         fit: Annotated[str | None, Field(
+             description="Clearance fit: Medium/Fine/Coarse for metric, "
+                         "Normal/Close/Loose for inch")] = None,
+         cut: Literal["counterbore", "countersink", "counterdrill"] | None = None,
+         cut_diameter: Annotated[float | None, Field(
+             description="Counterbore/countersink diameter; standard for the thread "
+                         "when omitted")] = None,
+         cut_depth: float | None = None,
+         countersink_angle: Annotated[float | None, Field(description="Degrees")] = None,
+         flat_bottom: Annotated[bool, Field(
+             description="Flat instead of a 118° drill point")] = False,
+         reversed: bool = False,
+         label: str | None = None, document: Doc = None) -> dict[str, Any]:
+    """Drill holes (Fusion: Hole): simple, clearance or tapped, optionally counterbored
+    or countersunk."""
+    return client.call("hole", sketch=sketch, diameter=diameter, depth=depth,
+                       through_all=through_all, thread=thread, tapped=tapped,
+                       modeled_thread=modeled_thread, fit=fit, cut=cut,
+                       cut_diameter=cut_diameter, cut_depth=cut_depth,
+                       countersink_angle=countersink_angle, flat_bottom=flat_bottom,
+                       reversed=reversed, label=label, document=document)
+
+
+@mcp.tool()
+def shell(faces: Annotated[list[str], Field(
+              description="Faces to remove (leave open), e.g. ['Face6'] (get_topology)")],
+          thickness: float,
+          base: Annotated[str | None, Field(
+              description="Feature whose faces these are; defaults to the body tip")] = None,
+          outward: Annotated[bool, Field(
+              description="Add the wall outside instead of keeping the outer size")] = False,
+          label: str | None = None, document: Doc = None) -> dict[str, Any]:
+    """Hollow out the solid with walls of the given thickness (Fusion: Shell)."""
+    return client.call("shell", faces=faces, thickness=thickness, base=base,
+                       outward=outward, label=label, document=document)
+
+
+REFERENCE_HELP = ("'X', 'Y', 'Z' (body axes), 'XY', 'XZ', 'YZ' (body planes), an edge or "
+                  "face like 'Pad:Edge3' / 'Pad:Face6', or a sketch axis like "
+                  "'Sketch:H_Axis'")
+Features = Annotated[list[str] | None, Field(
+    description="Features to copy, e.g. ['Pocket001']; defaults to the body's last feature")]
+WholeBody = Annotated[bool, Field(
+    description="Copy the whole body's solid instead of individual features")]
+
+
+@mcp.tool()
+def mirror(plane: Annotated[str, Field(description="Mirror plane: " + REFERENCE_HELP)] = "YZ",
+           features: Features = None, whole_body: WholeBody = False,
+           label: str | None = None, document: Doc = None) -> dict[str, Any]:
+    """Mirror features across a plane (Fusion: Mirror)."""
+    return client.call("mirror", plane=plane, features=features, whole_body=whole_body,
+                       label=label, document=document)
+
+
+@mcp.tool()
+def linear_pattern(
+    direction: Annotated[str, Field(description="Direction: " + REFERENCE_HELP)],
+    count: Annotated[int, Field(description="Number of instances, including the original")],
+    spacing: Annotated[float | None, Field(description="Distance between instances")] = None,
+    length: Annotated[float | None, Field(
+        description="Or: distance from first to last instance")] = None,
+    features: Features = None,
+    reversed: bool = False,
+    direction2: Annotated[str | None, Field(
+        description="Second direction for a grid")] = None,
+    count2: int | None = None, spacing2: float | None = None, length2: float | None = None,
+    whole_body: WholeBody = False,
+    label: str | None = None, document: Doc = None,
+) -> dict[str, Any]:
+    """Copy features in a row or grid (Fusion: Rectangular Pattern)."""
+    return client.call("linear_pattern", direction=direction, count=count, spacing=spacing,
+                       length=length, features=features, reversed=reversed,
+                       direction2=direction2, count2=count2, spacing2=spacing2,
+                       length2=length2, whole_body=whole_body, label=label,
+                       document=document)
+
+
+@mcp.tool()
+def polar_pattern(
+    count: Annotated[int, Field(description="Number of instances, including the original")],
+    axis: Annotated[str, Field(description="Axis: " + REFERENCE_HELP)] = "Z",
+    angle: Annotated[float, Field(
+        description="Total angle; 360 spreads the instances evenly around")] = 360.0,
+    features: Features = None, reversed: bool = False, whole_body: WholeBody = False,
+    label: str | None = None, document: Doc = None,
+) -> dict[str, Any]:
+    """Copy features around an axis (Fusion: Circular Pattern)."""
+    return client.call("polar_pattern", count=count, axis=axis, angle=angle,
+                       features=features, reversed=reversed, whole_body=whole_body,
+                       label=label, document=document)
 
 
 @mcp.tool()
@@ -431,7 +683,9 @@ def screenshot(view: View | None = None, width: int = 1024, height: int = 768,
 @mcp.tool()
 def export(path: Annotated[str, Field(
                description="Absolute output path; format from the extension: "
-                           ".step .stp .iges .igs .stl .obj .brep .FCStd")],
+                           ".step .stp .iges .igs .stl .obj .brep .FCStd .dxf (2D: "
+                           "the largest flat face of each object, e.g. a sheet metal "
+                           "flat pattern, for laser cutting)")],
            objects: Annotated[list[str] | None, Field(
                description="Objects to export; defaults to all bodies")] = None,
            document: Doc = None) -> dict[str, Any]:

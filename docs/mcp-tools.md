@@ -21,6 +21,7 @@ tool and defaults to the active document. Objects can be named by internal name
 | `list_objects` | Every object: name, label, type, owning body, validity |
 | `get_object(name)` | Properties and shape summary; for sketches also geometry and constraints |
 | `get_topology(name)` | Faces (type, area, centre, normal) and edges (type, length, endpoints/radius) |
+| `measure(a, b?)` | One element (`"Pad:Edge3"`, `"Pad:Face6"`, `"Pad"`): length, area, radius, volume. Two: distance, closest points, angle, and `plane_distance` for parallel faces |
 
 Use `get_topology` to choose a face to sketch on or edges to fillet. Face and edge
 names can change when earlier features change, so look them up again after edits.
@@ -32,14 +33,29 @@ names can change when earlier features change, so look them up again after edits
 | `create_body(label)` | New component / body |
 | `create_sketch(geometry, plane \| face, offset, constraints)` | Create Sketch |
 | `add_sketch_geometry(sketch, geometry, constraints)` | Edit sketch |
+| `set_dimension(sketch, constraint, value \| expression, name)` | Edit a sketch dimension by index or name; name it; or drive it by an expression |
+| `delete_sketch_geometry(sketch, geometry, constraints)` | Delete sketch geometry (and its constraints) or constraints |
+| `move_sketch_geometry(sketch, index, to, point, relative)` | Drag geometry or one of its points; the solver keeps constraints |
 | `pad(sketch, length, reversed, midplane, up_to_face)` | Extrude (Join) |
 | `pocket(sketch, length, through_all, reversed, midplane)` | Extrude (Cut) |
 | `revolve(sketch, angle, axis, groove)` | Revolve (Join or Cut) |
 | `fillet(edges, radius, base)` / `chamfer(edges, size, base)` | Fillet / Chamfer. `edges` can be `"all"` |
+| `hole(sketch, diameter \| thread, depth \| through_all, tapped, cut)` | Hole. One per circle centre in the sketch. `thread="M6"`, `"M8x1.0"`, `"UNC 1/4"` sizes a clearance hole, or with `tapped` a tap-drill hole; `cut` = `counterbore`, `countersink`, `counterdrill` (standard sizes unless given) |
+| `shell(faces, thickness, outward)` | Shell: hollow the solid, removing `faces`; walls go inside unless `outward` |
+| `mirror(plane, features \| whole_body)` | Mirror |
+| `linear_pattern(direction, count, spacing \| length, direction2, count2, spacing2)` | Rectangular Pattern (row, or grid with `direction2`) |
+| `polar_pattern(count, axis, angle)` | Circular Pattern |
+| `loft(sketches, cut, ruled, closed)` | Loft between two or more profiles |
+| `sweep(sketch, path, path_edges, cut, mode, transition)` | Sweep a profile along a sketch path or edges |
 | `press_pull(face, distance)` | Press Pull: move a flat face, e.g. `"Pad:Face6"`; positive adds, negative cuts |
 | `set_property(name, property, value)` | Edit feature, e.g. change a Pad's `Length` |
 | `delete_object(name)` | Delete |
 | `recompute`, `undo(steps)`, `redo(steps)` | |
+
+Patterns and mirror copy the body's last feature unless `features` lists others, or
+the whole solid with `whole_body`. Planes, axes and directions are given as `"X"`,
+`"Y"`, `"Z"` (body axes), `"XY"`, `"XZ"`, `"YZ"` (body planes), a face or edge such
+as `"Pad:Face6"` / `"Pad:Edge3"`, or a sketch axis such as `"Sketch:H_Axis"`.
 
 ### Sketch geometry
 
@@ -73,6 +89,21 @@ Passed straight to `Sketcher.Constraint(type, *args)`. Point positions: 1 = star
 ]
 ```
 
+## Parameters
+
+Like Fusion's Change Parameters. Parameters live in a `Parameters` object in the
+document, and any expression can use them as `Parameters.<name>`.
+
+| Tool | Does |
+|---|---|
+| `set_parameters({name: value})` | Numbers are mm; `"30 deg"`, `"5 mm"`, or `"=width / 2"` (expression); `{"value": 4, "kind": "number"}` for unitless |
+| `get_parameters` | Parameters (value, unit, expression) and every expression in the document |
+| `delete_parameter(name)` | |
+| `set_expression(name, property, expression)` | Drive a property, e.g. a Pad's `Length` = `"Parameters.thickness"`; a sketch's `Constraints.width`; `null` removes it |
+
+Typical use: `set_parameters({"width": 40})`, name a sketch dimension with
+`set_dimension(..., name="w", expression="Parameters.width")`, then change `width`.
+
 ## Timeline
 
 The body's feature history, like Fusion's timeline. The rollback marker sits right
@@ -98,7 +129,7 @@ These drive the add-ons in [addons.md](addons.md) and say so if one isn't instal
 | `create_gear(kind, teeth, module, height, position, in_body)` | Parametric gear: involute, internal, rack, bevel, worm, timing, cycloid, crown. A separate part unless `in_body` |
 | `sheet_metal_base(sketch, thickness, radius)` | Sheet metal plate from a closed sketch |
 | `sheet_metal_flange(edges, length, angle, radius)` | Bend a flange up along sheet edges |
-| `sheet_metal_unfold(face \| base)` | Flat pattern (export it with `export`) |
+| `sheet_metal_unfold(face \| base)` | Flat pattern (export it with `export`, e.g. to `.dxf`) |
 | `list_commands(filter)` | Find any GUI command, e.g. `"teardrop"` |
 | `run_command(command, selection, accept_dialog)` | Run any command as if clicked, after selecting `selection`; returns what it created |
 
@@ -113,7 +144,7 @@ These drive the add-ons in [addons.md](addons.md) and say so if one isn't instal
 
 | Tool | Does |
 |---|---|
-| `export(path, objects?)` | `.step/.stp`, `.iges/.igs`, `.stl`, `.obj`, `.brep`, `.FCStd` (copy). Defaults to all bodies |
+| `export(path, objects?)` | `.step/.stp`, `.iges/.igs`, `.stl`, `.obj`, `.brep`, `.FCStd` (copy), `.dxf`. Defaults to all bodies. DXF is 2D: each object's largest flat face laid on XY (side by side), e.g. a sheet metal flat pattern for laser cutting |
 | `import_file(path)` | STEP, IGES, BREP, STL, OBJ |
 
 ## Escape hatch
