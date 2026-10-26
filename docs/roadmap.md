@@ -66,9 +66,9 @@
 
 ## 6. More Fusion tools
 
-- [ ] Change Parameters dialog: one table of the document's parameters (name, value,
+- [x] Change Parameters dialog: one table of the document's parameters (name, value,
       expression), editable, on top of the `Parameters` VarSet the MCP tools use
-- [ ] Combine (join / cut / intersect bodies) and Split Body on the Modify toolbar;
+- [x] Combine (join / cut / intersect bodies) and Split Body on the Modify toolbar;
       MCP tools
 - [ ] Timeline groups: collapse a range of features into one named slot
 - [ ] Marking menu: Fusion's radial right-click menu in the 3D view

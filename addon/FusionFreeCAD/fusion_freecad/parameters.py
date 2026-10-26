@@ -73,7 +73,7 @@ def set_one(vs, name, spec):
     or a dict with ``value`` and optionally ``kind`` and ``comment``."""
     if not isinstance(spec, dict):
         spec = {"value": spec}
-    value, kind = spec.get("value"), spec.get("kind")
+    value, wanted = spec.get("value"), spec.get("kind")
     check_name(name)
     expression = value[1:] if isinstance(value, str) and value.startswith("=") else None
     if expression is not None:
@@ -88,31 +88,33 @@ def set_one(vs, name, spec):
             raise ParameterError("can't read %r for %s; use 10, '30 deg' or '=width / 2'"
                                  % (value, name))
     else:
-        unit = {"length": "mm", "angle": "deg"}.get(kind or "length")
+        unit = {"length": "mm", "angle": "deg"}.get(wanted or "length")
         quantity = App.Units.Quantity(float(value), App.Units.Unit(unit) if unit
                                       else App.Units.Unit())
     if not isinstance(quantity, App.Units.Quantity):
         quantity = App.Units.Quantity(float(quantity))
-    if kind is None:
-        kind = _kind_of(quantity)
-    if kind not in TYPES:
+    if wanted is None and name in names(vs) and quantity.Unit == App.Units.Unit():
+        wanted = kind(vs, name)  # '20' typed into a length stays a length
+    if wanted is None:
+        wanted = _kind_of(quantity)
+    if wanted not in TYPES:
         raise ParameterError("kind must be length, angle or number")
     if name in vs.PropertiesList and vs.getGroupOfProperty(name) != GROUP:
         raise ParameterError("%r is a reserved name" % name)
     comment = spec.get("comment")
-    if name in vs.PropertiesList and vs.getTypeIdOfProperty(name) != TYPES[kind]:
+    if name in vs.PropertiesList and vs.getTypeIdOfProperty(name) != TYPES[wanted]:
         if comment is None:
             comment = vs.getDocumentationOfProperty(name)
         vs.removeProperty(name)
     if name not in vs.PropertiesList:
-        vs.addProperty(TYPES[kind], name, GROUP, comment or "")
+        vs.addProperty(TYPES[wanted], name, GROUP, comment or "")
     elif "comment" in spec:
         vs.setDocumentationOfProperty(name, spec["comment"] or "")
     if expression is not None:
         vs.setExpression(name, expression)
     else:
         vs.setExpression(name, None)
-        setattr(vs, name, quantity.Value if kind == "number" else quantity)
+        setattr(vs, name, quantity.Value if wanted == "number" else quantity)
 
 
 def from_text(text):
@@ -151,6 +153,34 @@ def set_kind(vs, name, kind):
     else:
         value = getattr(vs, name)
         set_one(vs, name, {"value": getattr(value, "Value", value), "kind": kind})
+
+
+def snapshot(vs):
+    """Everything about the parameters, for ``restore``."""
+    if vs is None:
+        return {}
+    expressions = dict(vs.ExpressionEngine)
+    out = {}
+    for name in names(vs):
+        value = getattr(vs, name)
+        out[name] = {"kind": kind(vs, name),
+                     "value": ("=" + expressions[name]) if name in expressions
+                     else getattr(value, "Value", value),
+                     "comment": vs.getDocumentationOfProperty(name) or ""}
+    return out
+
+
+def restore(vs, saved):
+    """Put the parameters back as ``snapshot`` saw them. Aborting a transaction doesn't
+    always do it: changing a kind removes and re-adds a property of the same name, and
+    undo loses it."""
+    if vs is None:
+        return
+    for name in names(vs):
+        if name not in saved:
+            vs.removeProperty(name)
+    if snapshot(vs) != saved:
+        set_many(vs, {n: dict(spec) for n, spec in saved.items()})
 
 
 def set_many(vs, parameters):

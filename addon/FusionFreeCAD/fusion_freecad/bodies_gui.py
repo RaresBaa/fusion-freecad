@@ -7,15 +7,17 @@ from PySide import QtWidgets
 from .bodies import BodyError, body_of, split
 from .presspull_gui import _split_subname
 
-HOW = ("Select the body to split, then (Ctrl+click) a planar face or a plane to split "
-       "it with.")
+HOW = ("Select a planar face or a plane of the body to split it there, or select the "
+       "body first and then (Ctrl+click) the face or plane to split it with.")
 
 
 def _picks():
+    """(selected top-level object, object, subelement) per pick, in selection order."""
     picks = []
     for sel in Gui.Selection.getSelectionEx("", 0):
         for sub in sel.SubElementNames or [""]:
-            picks.append(_split_subname(sel.Object, sub) if sub else (sel.Object, ""))
+            obj, name = _split_subname(sel.Object, sub) if sub else (sel.Object, "")
+            picks.append((sel.Object, obj, name))
     return picks
 
 
@@ -34,11 +36,13 @@ class SplitBodyCommand:
 
     def Activated(self):
         picks = _picks()
-        if len(picks) != 2:
-            QtWidgets.QMessageBox.information(Gui.getMainWindow(), "Split Body", HOW)
-            return
-        (first, _), (tool, sub) = picks
-        body = body_of(first)
+        body = None
+        if len(picks) == 1:  # a face or plane of the body itself
+            top, tool, sub = picks[0]
+            body = body_of(top) or body_of(tool)
+        elif len(picks) == 2:
+            (_, first, _), (_, tool, sub) = picks
+            body = body_of(first)
         if body is None or (not sub.startswith("Face") and not _is_plane(tool)):
             QtWidgets.QMessageBox.information(Gui.getMainWindow(), "Split Body", HOW)
             return

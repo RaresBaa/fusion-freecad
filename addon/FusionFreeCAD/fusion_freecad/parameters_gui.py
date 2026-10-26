@@ -28,7 +28,7 @@ class ParametersDialog(QtWidgets.QDialog):
         header = self.table.horizontalHeader()
         header.setSectionResizeMode(QtWidgets.QHeaderView.Interactive)
         header.setSectionResizeMode(USED_BY, QtWidgets.QHeaderView.Stretch)
-        for column, width in ((NAME, 130), (EXPRESSION, 160), (VALUE, 100), (KIND, 90),
+        for column, width in ((NAME, 130), (EXPRESSION, 160), (VALUE, 100), (KIND, 110),
                               (COMMENT, 140)):
             self.table.setColumnWidth(column, width)
         self.table.verticalHeader().setVisible(False)
@@ -61,6 +61,7 @@ class ParametersDialog(QtWidgets.QDialog):
         row.addWidget(buttons)
         layout.addLayout(row)
 
+        self.saved = P.snapshot(self._vs())
         self.doc.openTransaction("Change parameters")
         self._fill()
 
@@ -163,6 +164,7 @@ class ParametersDialog(QtWidgets.QDialog):
 
     def reject(self):
         self.doc.abortTransaction()
+        P.restore(self._vs(), self.saved)
         self.doc.recompute()
         super().reject()
 

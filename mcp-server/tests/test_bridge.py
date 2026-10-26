@@ -687,6 +687,30 @@ result = r
     assert out["comment"] == "outer"
     assert out["users"] == [["Box", "Length"]]
 
+    # What the dialog's Cancel does: abort, then restore what the abort missed.
+    out = freecad.call("run_python", code="""
+from fusion_freecad import parameters as P
+vs = P.varset(doc)
+saved = P.snapshot(vs)
+doc.openTransaction("dialog")
+P.set_one(vs, "width", P.from_text("20"))
+r = {"typed": P.kind(vs, "width")}
+P.set_kind(vs, "width", "number")
+P.rename(vs, "half", "half_width")
+doc.recompute()
+doc.abortTransaction()
+r["aborted"] = sorted(P.names(vs))
+P.restore(vs, saved)
+doc.recompute()
+r["restored"] = P.snapshot(vs) == saved
+r["names"] = sorted(P.names(vs))
+r["box"] = doc.Box.Length.Value
+result = r
+""")["result"]
+    assert out["typed"] == "length"  # a unitless value keeps the kind
+    assert out["restored"] and out["names"] == ["half", "tilt", "width"]
+    assert out["box"] == pytest.approx(51)
+
 
 def test_combine_and_split_body(freecad):
     pad = _block(freecad, "Bodies")  # 40 x 20 x 10, centred

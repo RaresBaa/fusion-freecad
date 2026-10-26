@@ -17,7 +17,8 @@ Status: early. Working today:
   negative cuts. On a
   hole, boss or fillet it changes the radius.
 - **Combine and Split Body** (Modify): join, cut or intersect bodies; split one along a
-  face or plane into new bodies that still follow the original.
+  face or plane (select it, then Split Body) into new bodies that still follow the
+  original.
 - **Change Parameters** (Modify): one table of named values (`width`, `wall`...) that
   sketch dimensions and features use as `Parameters.width`; edit one and the model follows.
 - **Fusion keys**: E extrude, F fillet, H hole, Q press/pull, S search at the mouse; in sketches R rectangle,
