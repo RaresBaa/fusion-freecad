@@ -753,6 +753,51 @@ def test_combine_and_split_body(freecad):
         freecad.call("split_body", body=first, tool="YZ", offset=500)
 
 
+def test_inspect_tools(freecad):
+    pad = _block(freecad, "Inspect")  # 40 x 20 x 10 centred on the origin, z 0..10
+    c = freecad.call("check_geometry", name="Body")
+    assert c["ok"] and c["closed"] and c["problems"] == []
+    freecad.call("run_python", code="""
+import Part
+V = App.Vector
+bow = Part.Face(Part.makePolygon([V(0, 0, 0), V(10, 10, 0), V(10, 0, 0), V(0, 10, 0),
+                                  V(0, 0, 0)]))
+doc.addObject("Part::Feature", "Bow").Shape = bow
+""")
+    c = freecad.call("check_geometry", name="Bow")
+    assert not c["ok"] and not c["valid"] and not c["closed"]
+    assert any("Self-intersecting" in p for p in c["problems"])
+    freecad.call("delete_object", name="Bow")
+
+    m = freecad.call("mass_properties", name="Body", density=2)
+    assert m["volume_mm3"] == pytest.approx(8000)
+    assert m["mass_g"] == pytest.approx(16)
+    assert m["center_of_mass"] == pytest.approx([0, 0, 5])
+    ixx = 16 * (20 ** 2 + 10 ** 2) / 12  # box about its centre: m (b^2 + c^2) / 12
+    assert m["inertia_g_mm2"][0][0] == pytest.approx(ixx)
+    assert m["inertia_g_mm2"][0][1] == pytest.approx(0, abs=1e-6)
+    with pytest.raises(BridgeError, match="no material"):
+        freecad.call("mass_properties", name="Body", material="unobtainium")
+    s = freecad.call("set_material", name="Body", material="PLA")
+    assert s["material"] == "PLA-Generic" and s["density"] == pytest.approx(1.24)
+    m = freecad.call("mass_properties", name="Body")
+    assert m["density_from"] == "PLA-Generic" and m["mass_g"] == pytest.approx(9.92)
+
+    # A second block overlapping the first by 10 x 20 x 10, and a third just touching.
+    for x0 in (10, 30):
+        body = freecad.call("create_body", label="B%d" % x0)["body"]
+        sk = freecad.call("create_sketch", body=body, geometry=[
+            {"type": "rectangle", "corner": [x0, -10], "width": 20, "height": 20}])
+        freecad.call("pad", sketch=sk["sketch"], length=10)
+    i = freecad.call("interference", include_touching=True)
+    assert len(i["parts"]) == 3
+    assert [(c["a"], c["b"]) for c in i["interferences"]] == [("Body", "Body001")]
+    assert i["interferences"][0]["volume"] == pytest.approx(10 * 20 * 10)
+    assert i["interferences"][0]["bound_box"]["min"] == pytest.approx([10, -10, 0])
+    assert {"a": "Body001", "b": "Body002"} in i["touching"]
+    assert freecad.call("interference", names=["Body", "Body002"])["interferences"] == []
+
+
 def test_export_dxf_outline(freecad, tmp_path):
     base = _block(freecad, "Dxf", height=2)
     freecad.call("hole", sketch=_hole_sketch(freecad, base, [[10, 0]], radius=3),

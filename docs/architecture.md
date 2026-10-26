@@ -28,6 +28,7 @@ FreeCAD uses only the standard library; everything MCP-specific lives in `mcp-se
 | `bodies_gui.py` | The Split Body command |
 | `integrations.py` | Registry of other add-ons: their toolbar groups, loading them, compatibility patches |
 | `handlers_assembly.py` | RPC handlers for assemblies: links to parts, joints and the solver of FreeCAD's Assembly workbench |
+| `handlers_inspect.py` | RPC handlers that check a model: geometry check, interference, materials and mass |
 | `handlers_addons.py` | RPC handlers that drive those add-ons (fasteners, gears, sheet metal, any command) |
 | `shortcuts.py` | Fusion single-key shortcuts and restoring FreeCAD's originals |
 | `navigation.py` | Fusion mouse navigation (Revit style) in Fusion mode |

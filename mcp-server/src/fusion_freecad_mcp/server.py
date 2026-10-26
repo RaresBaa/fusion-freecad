@@ -119,6 +119,49 @@ def measure(a: Annotated[str, Field(
     return client.call("measure", a=a, b=b, document=document)
 
 
+@mcp.tool()
+def check_geometry(name: Annotated[str, Field(description="Body, feature or part")],
+                   document: Doc = None) -> dict[str, Any]:
+    """Check a shape before exporting or printing: valid, a closed solid, and what's
+    wrong otherwise (self-intersections, open shells, failed recompute)."""
+    return client.call("check_geometry", name=name, document=document)
+
+
+@mcp.tool()
+def interference(names: Annotated[list[str] | None, Field(
+                     description="Parts to compare (bodies or assembly links); default "
+                                 "every visible body and link")] = None,
+                 include_touching: bool = False,
+                 document: Doc = None) -> dict[str, Any]:
+    """Find parts that overlap (Fusion: Inspect > Interference), with the overlapping
+    volume and where it is. Checks parts where they sit, e.g. in an assembly."""
+    return client.call("interference", names=names, include_touching=include_touching,
+                       document=document)
+
+
+@mcp.tool()
+def set_material(name: str,
+                 material: Annotated[str, Field(
+                     description="From FreeCAD's material library: 'PLA', 'ABS', "
+                                 "'PETG', 'Aluminum-6061-T6', 'Steel-Generic'...")],
+                 document: Doc = None) -> dict[str, Any]:
+    """Give a body its material (used by mass_properties)."""
+    return client.call("set_material", name=name, material=material, document=document)
+
+
+@mcp.tool()
+def mass_properties(name: str,
+                    material: Annotated[str | None, Field(
+                        description="Library material to assume, e.g. 'PLA'")] = None,
+                    density: Annotated[float | None, Field(
+                        description="g/cm^3, instead of a material")] = None,
+                    document: Doc = None) -> dict[str, Any]:
+    """Mass, volume, area, centre of mass and inertia tensor (g*mm^2, about the centre of
+    mass). Density from `density`, else `material`, else the body's own material."""
+    return client.call("mass_properties", name=name, material=material, density=density,
+                       document=document)
+
+
 # --- modelling ---------------------------------------------------------------
 
 @mcp.tool()

@@ -1488,8 +1488,9 @@ HANDLERS = {fn.__name__: fn for fn in [
 
 
 def _extra_handlers():
-    from . import handlers_addons, handlers_assembly
-    return dict(handlers_addons.HANDLERS, **handlers_assembly.HANDLERS)
+    from . import handlers_addons, handlers_assembly, handlers_inspect
+    return dict(handlers_addons.HANDLERS, **handlers_assembly.HANDLERS,
+                **handlers_inspect.HANDLERS)
 
 
 HANDLERS.update(_extra_handlers())

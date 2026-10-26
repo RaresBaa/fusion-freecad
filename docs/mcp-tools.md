@@ -22,6 +22,10 @@ tool and defaults to the active document. Objects can be named by internal name
 | `get_object(name)` | Properties and shape summary; for sketches also geometry and constraints |
 | `get_topology(name)` | Faces (type, area, centre, normal) and edges (type, length, endpoints/radius) |
 | `measure(a, b?)` | One element (`"Pad:Edge3"`, `"Pad:Face6"`, `"Pad"`): length, area, radius, volume. Two: distance, closest points, angle, and `plane_distance` for parallel faces |
+| `check_geometry(name)` | Valid closed solid? Lists self-intersections, open shells, failed recomputes |
+| `interference(names?)` | Overlapping parts (default: every visible body and link) with the overlap volume and box; `include_touching` lists contacts too |
+| `set_material(name, material)` | Library material, e.g. `"PLA"`, `"Aluminum-6061-T6"` |
+| `mass_properties(name, material?, density?)` | Mass (g), volume, area, centre of mass, inertia (g·mm², about the centre of mass) |
 
 Use `get_topology` to choose a face to sketch on or edges to fillet. Face and edge
 names can change when earlier features change, so look them up again after edits.

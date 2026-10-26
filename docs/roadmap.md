@@ -78,8 +78,9 @@
 
 - [ ] Construction geometry: datum planes (offset, angled, through 3 points), axes,
       points; sketches on them
-- [ ] Self-checks: `check_geometry` (valid, closed, self-intersections),
-      `interference` between bodies, `mass_properties` (mass, centre of mass, inertia)
+- [x] Self-checks: `check_geometry` (valid, closed, self-intersections),
+      `interference` between bodies, `mass_properties` (mass, centre of mass, inertia),
+      `set_material` from FreeCAD's material library
 - [ ] Sketch tools: project model edges, offset a profile, fillet corners,
       `add_constraint` / `delete_constraint`
 - [ ] Features: draft, two-sided and tapered extrudes, text / emboss, rib
