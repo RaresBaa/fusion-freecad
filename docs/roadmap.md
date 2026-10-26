@@ -60,7 +60,9 @@
 - [x] Sheet metal flat pattern export to DXF (`export` to `.dxf`, any flat part)
 - [ ] Test the Nix flake on NixOS
 
-## Open questions
+## 6. Distribution
 
-- Ship as one addon in the FreeCAD Addon Manager, with the MCP server published to PyPI?
-- License: currently marked LGPL-2.1-or-later to match FreeCAD; not final.
+- [x] Distributed from GitHub: NixOS through the flake, Windows through a release zip
+      built by hand with `scripts/build-release.ps1` and uploaded to a GitHub release
+      (no CI for now). Not in the Addon Manager or on PyPI.
+- [x] License: LGPL-2.1-or-later, matching FreeCAD

@@ -42,6 +42,11 @@ Requires FreeCAD 1.0 or newer (developed on 1.1) and [uv](https://docs.astral.sh
    restart, and installs the [add-ons](docs/addons.md) it uses at tested versions;
    `-Addons minimal|all|none` / `--addons ...` to choose). On NixOS see [docs/nix.md](docs/nix.md).
 
+   On Windows without git, download `fusion-freecad-<version>-windows.zip` from the
+   GitHub releases, extract it and double-click `Install.cmd`. It copies everything
+   (add-ons included) into FreeCAD and prints the `claude mcp add` command for step 3,
+   so the extracted folder can be deleted afterwards. Run it from a newer zip to update.
+
    ```powershell
    # Windows
    powershell -ExecutionPolicy Bypass -File scripts\install-addon.ps1

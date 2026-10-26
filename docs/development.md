@@ -54,6 +54,23 @@ cd mcp-server && uv run python ../scripts/check-addons.py
 A fresh profile shows FreeCAD's first-run dialogs (and Ribbon's, if installed); they
 block startup scripts until answered.
 
+## Windows release
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\build-release.ps1
+```
+
+builds `dist\fusion-freecad-<version>-windows.zip` from the committed `HEAD` (version
+from `package.xml`; bump it, and `mcp-server/pyproject.toml`, first). It bundles every
+add-on in `addons.json` at its pinned commit, so installing needs no git. Upload the
+zip to a GitHub release by hand; there is no CI.
+
+`install-addon.ps1` notices the bundled `addons\` folder and copies instead of linking:
+the addon into `Mod\FusionFreeCAD`, the add-ons into `Mod`, the MCP server into
+`%LOCALAPPDATA%\fusion-freecad\mcp-server`. Copied folders get a `.fusion-freecad-rev`
+file (the commit), so a later install can replace them; `-Uninstall` removes the addon
+and the MCP server copy.
+
 ## Gotchas
 
 - `InitGui.py` is run by FreeCAD with `exec()`, so `__file__` is undefined there. Put
