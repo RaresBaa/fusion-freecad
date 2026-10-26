@@ -58,6 +58,11 @@ PartDesign relinks the BaseFeature chain itself. A move is refused when somethin
 would end up before an object it links to (its sketch, the face a sketch is attached
 to), and the marker stays on the same feature, or at the end if it was there.
 
+In the widget, a feature's own profile sketch directly before it shares the feature's
+slot (`history.cells`), drawn as a badge; dragging or rolling works on slots, which
+map back to `Group` indices (the feature is always a slot's last member, so the marker
+never lands inside one). *Fusion → Group sketches in timeline* turns it off.
+
 The widget repaints when a cheap signature of the active body (names, labels, states,
 tip, selection) changes, polled a few times a second while visible. That keeps it in
 sync with every source of change (tree, undo, Python, MCP) without document observers.

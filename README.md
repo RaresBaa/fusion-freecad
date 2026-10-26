@@ -11,7 +11,8 @@ Status: early. Working today:
   timeline back, take screenshots and export (STEP, STL, DXF...), in a live FreeCAD.
 - **Fusion workbench**: Fusion-style toolbars in one workspace.
 - **Timeline** at the bottom: drag the orange marker to roll back, drag features to
-  reorder them, double-click to edit, right-click to suppress or delete.
+  reorder them, double-click to edit, right-click to suppress or delete. Each
+  feature's sketch is folded into it, so long histories stay short.
 - **Press/Pull** (Q): pick a face, type a distance; positive adds, negative cuts. On a
   hole, boss or fillet it changes the radius.
 - **Fusion keys**: E extrude, F fillet, H hole, Q press/pull, S search at the mouse; in sketches R rectangle,

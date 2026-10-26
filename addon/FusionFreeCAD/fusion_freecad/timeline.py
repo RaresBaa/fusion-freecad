@@ -5,6 +5,8 @@
 - The orange marker sits after the body's Tip. Drag it to roll the model back;
   new features are then inserted at the marker. Playback buttons step it.
 - Rolled-back features are faded, suppressed ones struck through, failing ones red.
+- A feature's own sketch shares its slot, shown as a small badge (*Fusion → Group
+  sketches in timeline* turns that off).
 
 The widget polls a cheap signature of the active body a few times per second while
 visible and repaints only when it changed, which keeps it in sync with every way the
@@ -15,10 +17,11 @@ import FreeCAD as App
 import FreeCADGui as Gui
 from PySide import QtCore, QtGui, QtWidgets
 
-from . import history
+from . import history, prefs
 
 CELL = 34          # width of one timeline slot
 ICON = 24
+BADGE = 13         # the sketch icon in a grouped slot
 PAD = 10           # left/right padding inside the strip
 STRIP_HEIGHT = 46
 MARKER_COLOR = QtGui.QColor("#f28c28")
@@ -32,8 +35,8 @@ class TimelineStrip(QtWidgets.QWidget):
     def __init__(self, panel):
         super().__init__()
         self.panel = panel
-        self.items = []          # [(obj, entry dict)]
-        self.marker = -1         # index after which the marker sits
+        self.items = []          # slots: [[(obj, entry dict), ...]], the feature last
+        self.marker = -1         # slot index after which the marker sits
         self.selected = set()
         self.drag_marker = None  # marker index while dragging
         self.press = None        # (cell index, x) of a left press on a feature
@@ -84,14 +87,15 @@ class TimelineStrip(QtWidgets.QWidget):
         p.setPen(QtGui.QPen(pal.color(QtGui.QPalette.Mid), 2))
         p.drawLine(PAD, rail_y, PAD + len(self.items) * CELL, rail_y)
 
-        for i, (obj, entry) in enumerate(self.items):
+        for i, members in enumerate(self.items):
+            obj, entry = members[-1]
             r = self.cell_rect(i)
             box = r.adjusted(3, 0, -3, 0)
-            if obj.Name in self.selected:
+            if any(o.Name in self.selected for o, _ in members):
                 p.setPen(QtCore.Qt.NoPen)
                 p.setBrush(SELECT_COLOR)
                 p.drawRoundedRect(box, 4, 4)
-            if entry["error"]:
+            if any(e["error"] for _, e in members):
                 p.setPen(QtGui.QPen(ERROR_COLOR, 2))
                 p.setBrush(QtCore.Qt.NoBrush)
                 p.drawRoundedRect(box, 4, 4)
@@ -105,6 +109,10 @@ class TimelineStrip(QtWidgets.QWidget):
                 p.setPen(pal.color(QtGui.QPalette.Text))
                 p.drawText(QtCore.QRect(ix, iy, ICON, ICON), QtCore.Qt.AlignCenter,
                            entry["label"][:2])
+            if len(members) > 1:
+                badge = _icon_for(members[0][0])
+                if badge is not None and not badge.isNull():
+                    badge.paint(p, box.right() - BADGE, box.bottom() - BADGE, BADGE, BADGE)
             p.setOpacity(1.0)
             if entry["suppressed"]:
                 p.setPen(QtGui.QPen(pal.color(QtGui.QPalette.Text), 2))
@@ -148,7 +156,7 @@ class TimelineStrip(QtWidgets.QWidget):
             return
         i = self.index_at(x)
         if event.button() == QtCore.Qt.LeftButton and i is not None:
-            self.panel.select(self.items[i][0], event.modifiers())
+            self.panel.select(self.items[i][-1][0], event.modifiers())
             self.press = (i, x)
 
     def mouseMoveEvent(self, event):
@@ -178,32 +186,39 @@ class TimelineStrip(QtWidgets.QWidget):
             self.setCursor(QtCore.Qt.ArrowCursor)
             self.update()
             if target not in (item, item - 1):
-                self.panel.move(self.items[item][0], target)
+                self.panel.move(self.items[item][-1][0], self.group_index(target))
             return
         if self.drag_marker is None:
             return
         target, self.drag_marker = self.drag_marker, None
         self.setCursor(QtCore.Qt.ArrowCursor)
         if target != self.marker:
-            self.panel.roll_to_index(target)
+            self.panel.roll_to_index(self.group_index(target))
         self.update()
+
+    def group_index(self, boundary):
+        """A boundary between slots as an index in body.Group (-1: before everything)."""
+        return self.items[boundary][-1][1]["index"] if boundary >= 0 else -1
 
     def mouseDoubleClickEvent(self, event):
         i = self.index_at(_x(event))
         if i is not None:
-            self.panel.edit(self.items[i][0])
+            self.panel.edit(self.items[i][-1][0])
 
     def contextMenuEvent(self, event):
         i = self.index_at(event.pos().x())
         if i is not None:
-            self.panel.context_menu(self.items[i][0], i, event.globalPos())
+            self.panel.context_menu([o for o, _ in self.items[i]], self.group_index(i),
+                                    event.globalPos())
 
     def event(self, event):
         if event.type() == QtCore.QEvent.ToolTip:
             i = self.index_at(event.pos().x())
             if i is not None:
-                obj, entry = self.items[i]
+                obj, entry = self.items[i][-1]
                 lines = ["<b>%s</b>" % entry["label"], entry["type"].split("::")[-1]]
+                if len(self.items[i]) > 1:
+                    lines.append("sketch: %s" % self.items[i][0][1]["label"])
                 if entry["rolled_back"]:
                     lines.append("<i>rolled back</i>")
                 if entry["suppressed"]:
@@ -291,10 +306,14 @@ class TimelinePanel(QtWidgets.QWidget):
             self.strip.set_data([], -1, set())
             self.caption.setText("No body" if doc else "")
             return
-        entries = history.entries(body)
-        items = list(zip(body.Group, entries))
+        group, entries = body.Group, history.entries(body)
+        slots = history.cells(body, grouped=_grouped())
+        items = [[(group[i], entries[i]) for i in slot] for slot in slots]
+        # The marker is on a feature, which is always the last of its slot.
+        marker = history.marker_index(body)
+        marker_slot = max((s for s, slot in enumerate(slots) if slot[-1] <= marker), default=-1)
         selected = {o.Name for o in Gui.Selection.getSelection(doc.Name)}
-        self.strip.set_data(items, history.marker_index(body), selected)
+        self.strip.set_data(items, marker_slot, selected)
         self.caption.setText(body.Label)
 
     @staticmethod
@@ -304,7 +323,8 @@ class TimelinePanel(QtWidgets.QWidget):
         objs = tuple((o.Name, o.Label, tuple(o.State), bool(getattr(o, "Suppressed", False)))
                      for o in body.Group)
         selected = tuple(o.Name for o in Gui.Selection.getSelection(doc.Name))
-        return (doc.Name, body.Name, body.Tip.Name if body.Tip else None, objs, selected)
+        return (doc.Name, body.Name, body.Tip.Name if body.Tip else None, objs, selected,
+                _grouped())
 
     # -- actions --------------------------------------------------------------
 
@@ -352,9 +372,12 @@ class TimelinePanel(QtWidgets.QWidget):
         if gdoc is not None:
             gdoc.setEdit(obj, 0)
 
-    def context_menu(self, obj, index, global_pos):
+    def context_menu(self, members, index, global_pos):
+        obj = members[-1]
         menu = QtWidgets.QMenu(self)
         menu.addAction("Edit feature", lambda: self.edit(obj))
+        if len(members) > 1:
+            menu.addAction("Edit sketch", lambda: self.edit(members[0]))
         menu.addAction("Roll back to here", lambda: self.roll_to_index(index))
         if "Suppressed" in obj.PropertiesList:
             suppressed = bool(obj.Suppressed)
@@ -371,6 +394,10 @@ class TimelinePanel(QtWidgets.QWidget):
         Gui.Selection.addSelection(obj)
         Gui.runCommand("Std_Delete", 0)
         self.refresh(force=True)
+
+
+def _grouped():
+    return prefs().GetBool("GroupSketches", True)
 
 
 DOCK_NAME = "FusionFreeCAD_Timeline"
@@ -401,6 +428,13 @@ def hide():
     existing = mw.findChild(QtWidgets.QDockWidget, DOCK_NAME)
     if existing is not None:
         existing.hide()
+
+
+def refresh():
+    mw = Gui.getMainWindow()
+    existing = mw.findChild(QtWidgets.QDockWidget, DOCK_NAME)
+    if existing is not None:
+        existing.widget().refresh(force=True)
 
 
 def toggle():

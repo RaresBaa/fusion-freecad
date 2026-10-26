@@ -71,6 +71,24 @@ class _ToggleTimeline:
         return True
 
 
+class _ToggleGroupSketches:
+    def GetResources(self):
+        return {"MenuText": "Group sketches in timeline",
+                "ToolTip": "Show a feature's own sketch in the feature's timeline slot",
+                "Checkable": prefs().GetBool("GroupSketches", True)}
+
+    def Activated(self, checked=None):
+        from . import timeline
+
+        if checked is None:
+            checked = not prefs().GetBool("GroupSketches", True)
+        prefs().SetBool("GroupSketches", bool(checked))
+        timeline.refresh()
+
+    def IsActive(self):
+        return True
+
+
 class _ToggleShortcuts:
     def GetResources(self):
         return {"MenuText": "Fusion keyboard shortcuts",
@@ -212,7 +230,8 @@ class _SearchAtCursor:
 
 
 BRIDGE_COMMANDS = ["FusionFreeCAD_StartBridge", "FusionFreeCAD_StopBridge"]
-MENU = ["FusionFreeCAD_ToggleTimeline", "FusionFreeCAD_ToggleShortcuts",
+MENU = ["FusionFreeCAD_ToggleTimeline", "FusionFreeCAD_ToggleGroupSketches",
+        "FusionFreeCAD_ToggleShortcuts",
         "FusionFreeCAD_ToggleSketcherOverride", "FusionFreeCAD_ToggleNavigation",
         "FusionFreeCAD_ToggleTabs", "FusionFreeCAD_ShowToolbars",
         "FusionFreeCAD_SearchAtCursor",
@@ -231,6 +250,7 @@ def register():
     Gui.addCommand("FusionFreeCAD_StopBridge", _StopBridge())
     Gui.addCommand("FusionFreeCAD_ToggleAutoStart", _ToggleAutoStart())
     Gui.addCommand("FusionFreeCAD_ToggleTimeline", _ToggleTimeline())
+    Gui.addCommand("FusionFreeCAD_ToggleGroupSketches", _ToggleGroupSketches())
     Gui.addCommand("FusionFreeCAD_ToggleShortcuts", _ToggleShortcuts())
     Gui.addCommand("FusionFreeCAD_ToggleSketcherOverride", _ToggleSketcherOverride())
     Gui.addCommand("FusionFreeCAD_ToggleNavigation", _ToggleNavigation())

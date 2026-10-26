@@ -117,6 +117,8 @@ def test_timeline_rollback_and_insert(freecad):
                                                   "feature"]
     assert tl["tip"] == fillet_name
     assert not any(e["rolled_back"] for e in tl["entries"])
+    # Each profile sketch shares its feature's slot in the timeline widget.
+    assert [e["owner"] for e in tl["entries"]] == [pad_name, None, pocket_name, None, None]
 
     # Step back past the fillet and the pocket.
     rolled = freecad.call("roll_timeline", steps=-2)

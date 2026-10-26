@@ -5,6 +5,9 @@ body's Tip: features after it are "rolled back" (not part of the body's shape), 
 new features are inserted at the marker. Only solid features can be the Tip, so
 rolling to a sketch or datum puts the Tip on the nearest solid feature before it.
 
+A feature's own profile sketch, right before it, can share its slot (``cells``), which
+keeps long timelines short.
+
 No Qt here, so it works headless and backs both the timeline widget and the RPC tools.
 """
 
@@ -67,9 +70,26 @@ def marker_index(body):
     return group.index(tip)
 
 
+def cells(body, grouped=True):
+    """The timeline's slots, as lists of body.Group indices. With ``grouped``, a
+    feature's own sketch directly before it shares the feature's slot."""
+    group = body.Group
+    result = []
+    for i, obj in enumerate(group):
+        if grouped and result and result[-1] == [i - 1] and own_sketch(body, obj) is group[i - 1]:
+            result[-1].append(i)
+        else:
+            result.append([i])
+    return result
+
+
 def entries(body):
     group = body.Group
     marker = marker_index(body)
+    owners = {}
+    for cell in cells(body):
+        for i in cell[:-1]:
+            owners[i] = group[cell[-1]].Name
     result = []
     for i, obj in enumerate(group):
         result.append({
@@ -82,6 +102,7 @@ def entries(body):
             "rolled_back": i > marker,
             "suppressed": bool(getattr(obj, "Suppressed", False)),
             "error": "Invalid" in obj.State or "Error" in obj.State,
+            "owner": owners.get(i),  # the feature whose sketch this is, if grouped
         })
     return result
 
