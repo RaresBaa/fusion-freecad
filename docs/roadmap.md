@@ -64,7 +64,17 @@
 - [x] Sheet metal flat pattern export to DXF (`export` to `.dxf`, any flat part)
 - [ ] Test the Nix flake on NixOS
 
-## 6. Distribution
+## 6. More Fusion tools
+
+- [ ] Change Parameters dialog: one table of the document's parameters (name, value,
+      expression), editable, on top of the `Parameters` VarSet the MCP tools use
+- [ ] Combine (join / cut / intersect bodies) and Split Body on the Modify toolbar;
+      MCP tools
+- [ ] Timeline groups: collapse a range of features into one named slot
+- [ ] Marking menu: Fusion's radial right-click menu in the 3D view
+- [ ] Sketch: closer to Fusion's sketcher (constraint inference, dimension on create)
+
+## 7. Distribution
 
 - [x] Distributed from GitHub: NixOS through the flake, Windows through a release zip
       built by hand with `scripts/build-release.ps1` and uploaded to a GitHub release

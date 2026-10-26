@@ -260,6 +260,13 @@ def delete_parameter(name: str, document: Doc = None) -> dict[str, Any]:
 
 
 @mcp.tool()
+def rename_parameter(name: str, new_name: str, document: Doc = None) -> dict[str, Any]:
+    """Rename a user parameter; expressions that use it follow the new name."""
+    return client.call("rename_parameter", name=name, new_name=new_name,
+                       document=document)
+
+
+@mcp.tool()
 def set_expression(name: Annotated[str, Field(description="Object, e.g. 'Pad'")],
                    property: Annotated[str, Field(
                        description="Property, e.g. 'Length', 'Radius', "

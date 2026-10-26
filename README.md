@@ -16,6 +16,8 @@ Status: early. Working today:
 - **Press/Pull** (Q): pick a face, drag the arrow or type a distance; positive adds,
   negative cuts. On a
   hole, boss or fillet it changes the radius.
+- **Change Parameters** (Modify): one table of named values (`width`, `wall`...) that
+  sketch dimensions and features use as `Parameters.width`; edit one and the model follows.
 - **Fusion keys**: E extrude, F fillet, H hole, Q press/pull, S search at the mouse; in sketches R rectangle,
   D dimension, X construction, O offset. Optionally L line, C circle, P project (*Fusion* menu).
   They're only active while you're in the Fusion workbench.

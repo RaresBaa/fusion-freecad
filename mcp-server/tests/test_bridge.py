@@ -633,6 +633,59 @@ def test_parameters_drive_the_model(freecad):
         freecad.call("set_parameters", parameters={"Label": 3})
     freecad.call("delete_parameter", name="count")
     assert "count" not in [x["name"] for x in freecad.call("get_parameters")["parameters"]]
+    with pytest.raises(BridgeError, match="unit name"):
+        freecad.call("set_parameters", parameters={"h": 3})
+
+    # Renaming carries the expressions that use it along.
+    freecad.call("set_expression", name=pad["feature"], property="Length",
+                 expression="Parameters.width / 20")
+    p = freecad.call("rename_parameter", name="width", new_name="plate_width")
+    assert next(x for x in p["parameters"] if x["name"] == "half")["expression"]         == "plate_width / 2"
+    exprs = freecad.call("get_parameters")["expressions"]
+    assert {"object": pad["feature"], "property": "Length",
+            "expression": "Parameters.plate_width / 20"} in exprs
+    with pytest.raises(BridgeError, match="taken"):
+        freecad.call("rename_parameter", name="half", new_name="tilt")
+
+
+def test_parameter_dialog_helpers(freecad):
+    """The Change Parameters dialog's text handling and kind switching."""
+    freecad.call("new_document", name="ParamText")
+    freecad.call("set_parameters", parameters={"width": 40, "tilt": "30 deg"})
+    freecad.call("run_python", code="""
+box = doc.addObject("Part::Box", "Box")
+box.setExpression("Length", "Parameters.width + 1 mm")
+""")
+    out = freecad.call("run_python", code="""
+from fusion_freecad import parameters as P
+vs = P.varset(doc)
+r = {"texts": [P.from_text(t) for t in ("40", "30 deg", " width / 2 ", "=width", "")]}
+P.set_one(vs, "half", P.from_text("width / 2"))
+doc.recompute()
+r["half"] = (P.as_text(vs, "half"), P.value_text(vs, "half"))
+r["width"] = P.as_text(vs, "width")
+P.set_one(vs, "width", {"value": P.from_text("50"), "comment": "outer"})
+P.set_kind(vs, "tilt", "number")
+r["tilt"] = (P.kind(vs, "tilt"), vs.tilt)
+P.set_kind(vs, "tilt", "angle")
+r["tilt_back"] = (P.kind(vs, "tilt"), vs.tilt.Value)
+P.set_kind(vs, "width", "number")
+P.set_kind(vs, "width", "length")
+doc.recompute()
+r["box"] = (doc.Box.Length.Value, dict(doc.Box.ExpressionEngine), "Invalid" in doc.Box.State)
+r["comment"] = vs.getDocumentationOfProperty("width")
+r["users"] = [(o.Name, p) for o, p in P.users(doc, "width")]
+result = r
+""")["result"]
+    assert out["texts"] == ["40", "30 deg", "=width / 2", "=width", ""]
+    assert out["half"][0] == "width / 2" and out["half"][1].startswith("20")
+    assert out["width"].startswith("40")
+    assert out["tilt"] == ["number", 30]
+    assert out["tilt_back"] == ["angle", 30]
+    # Changing a parameter's kind keeps what uses it working.
+    assert out["box"] == [51, {"Length": "Parameters.width + 1 mm"}, False]
+    assert out["comment"] == "outer"
+    assert out["users"] == [["Box", "Length"]]
 
 
 def test_export_dxf_outline(freecad, tmp_path):

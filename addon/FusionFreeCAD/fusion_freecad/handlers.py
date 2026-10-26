@@ -18,6 +18,7 @@ import tempfile
 
 import FreeCAD as App
 
+from . import parameters as params
 from .rpc import PROTOCOL_VERSION, HandlerError
 
 if App.GuiUp:
@@ -679,125 +680,42 @@ def move_sketch_geometry(doc, sketch, index, to, point="edge", relative=False):
     return _sketch_result(sk, sk.solve())
 
 
-# Parameters: one App::VarSet named "Parameters" (Fusion: Change Parameters). Expressions
-# anywhere can then use Parameters.<name>.
-
-_PARAMETER_GROUP = "Parameters"
-_PARAMETER_TYPES = {"length": "App::PropertyDistance", "angle": "App::PropertyAngle",
-                    "number": "App::PropertyFloat"}
-
-
-def _parameters(doc, create=False):
-    obj = doc.getObject("Parameters")
-    if obj is None or obj.TypeId != "App::VarSet":
-        if not create:
-            return None
-        obj = doc.addObject("App::VarSet", "Parameters")
-    return obj
-
-
-def _parameter_names(vs):
-    return [p for p in vs.PropertiesList if vs.getGroupOfProperty(p) == _PARAMETER_GROUP]
-
-
-def _kind_of(quantity):
-    unit = quantity.Unit
-    if unit == App.Units.Unit("mm"):
-        return "length"
-    if unit == App.Units.Unit("deg"):
-        return "angle"
-    if unit == App.Units.Unit():
-        return "number"
-    raise HandlerError("parameters can be lengths, angles or plain numbers, got %s"
-                       % quantity.UserString)
-
-
-def _set_parameter(vs, name, spec):
-    if not isinstance(spec, dict):
-        spec = {"value": spec}
-    value, kind = spec.get("value"), spec.get("kind")
-    if not name.isidentifier():
-        raise HandlerError("parameter name %r must be a valid identifier" % name)
-    expression = value[1:] if isinstance(value, str) and value.startswith("=") else None
-    if expression is not None:
-        try:
-            quantity = vs.evalExpression(expression)
-        except Exception as e:
-            raise HandlerError("bad expression for %s: %s" % (name, e))
-    elif isinstance(value, str):
-        try:
-            quantity = App.Units.Quantity(value)
-        except Exception:
-            raise HandlerError("can't read %r for %s; use 10, '30 deg' or '=width / 2'"
-                               % (value, name))
-    else:
-        quantity = App.Units.Quantity(float(value), App.Units.Unit("mm") if kind in
-                                      (None, "length") else App.Units.Unit())
-    if not isinstance(quantity, App.Units.Quantity):
-        quantity = App.Units.Quantity(float(quantity))
-    if kind is None:
-        kind = _kind_of(quantity)
-    if kind not in _PARAMETER_TYPES:
-        raise HandlerError("kind must be length, angle or number")
-    if name in vs.PropertiesList and vs.getGroupOfProperty(name) != _PARAMETER_GROUP:
-        raise HandlerError("%r is a reserved name" % name)
-    if name in vs.PropertiesList and vs.getTypeIdOfProperty(name) != _PARAMETER_TYPES[kind]:
-        vs.removeProperty(name)
-    if name not in vs.PropertiesList:
-        vs.addProperty(_PARAMETER_TYPES[kind], name, _PARAMETER_GROUP,
-                       spec.get("comment", ""))
-    if expression is not None:
-        vs.setExpression(name, expression)
-    else:
-        vs.setExpression(name, None)
-        setattr(vs, name, quantity.Value if kind == "number" else quantity)
-
-
-_PARAMETER_UNITS = {"App::PropertyDistance": "mm", "App::PropertyAngle": "deg"}
-
-
-def _parameter_list(vs):
-    vs.Document.recompute()  # evaluate expressions set in this call
-    expressions = dict(vs.ExpressionEngine)
-    out = []
-    for p in _parameter_names(vs):
-        value = getattr(vs, p)
-        out.append({"name": p, "value": _round(getattr(value, "Value", value)),
-                    "unit": _PARAMETER_UNITS.get(vs.getTypeIdOfProperty(p)),
-                    "expression": expressions.get(p),
-                    "comment": vs.getDocumentationOfProperty(p) or None})
-    return out
-
+# Parameters (Fusion: Change Parameters) live in parameters.py, shared with the dialog.
 
 @_mutating("Set parameters")
 def set_parameters(doc, parameters):
     if not isinstance(parameters, dict) or not parameters:
         raise HandlerError("pass parameters={'width': 40, 'angle': '30 deg', "
                            "'half': '=width / 2'}")
-    vs = _parameters(doc, create=True)
-    # Plain values first so expressions can refer to parameters set in the same call.
-    items = sorted(parameters.items(), key=lambda kv: str(
-        kv[1].get("value") if isinstance(kv[1], dict) else kv[1]).startswith("="))
-    for name, spec in items:
-        _set_parameter(vs, name, spec)
-    return {"parameters": _parameter_list(vs)}
+    vs = params.varset(doc, create=True)
+    params.set_many(vs, parameters)
+    return {"parameters": params.listing(vs)}
 
 
 @_mutating("Delete parameter")
 def delete_parameter(doc, name):
-    vs = _parameters(doc)
-    if vs is None or name not in _parameter_names(vs):
+    vs = params.varset(doc)
+    if vs is None or name not in params.names(vs):
         raise HandlerError("no parameter %r" % name)
     vs.removeProperty(name)
-    return {"parameters": _parameter_list(vs)}
+    return {"parameters": params.listing(vs)}
+
+
+@_mutating("Rename parameter")
+def rename_parameter(doc, name, new_name):
+    vs = params.varset(doc)
+    if vs is None:
+        raise HandlerError("no parameter %r" % name)
+    params.rename(vs, name, new_name)
+    return {"parameters": params.listing(vs)}
 
 
 def get_parameters(document=None):
     doc = _doc(document)
-    vs = _parameters(doc)
+    vs = params.varset(doc)
     expressions = [{"object": o.Name, "property": prop.lstrip("."), "expression": expr}
                    for o in doc.Objects for prop, expr in o.ExpressionEngine]
-    return {"parameters": _parameter_list(vs) if vs else [], "expressions": expressions}
+    return {"parameters": params.listing(vs) if vs else [], "expressions": expressions}
 
 
 @_mutating("Set expression")
@@ -1528,7 +1446,8 @@ HANDLERS = {fn.__name__: fn for fn in [
     ping, list_documents, new_document, open_document, save_document, close_document,
     activate_document, list_objects, get_object, get_topology, measure,
     create_body, create_sketch, add_sketch_geometry, set_dimension, delete_sketch_geometry,
-    move_sketch_geometry, set_parameters, delete_parameter, get_parameters, set_expression,
+    move_sketch_geometry, set_parameters, delete_parameter, rename_parameter,
+    get_parameters, set_expression,
     pad, pocket, revolve, fillet, chamfer,
     press_pull, hole, shell, mirror, linear_pattern, polar_pattern, loft, sweep,
     set_property, delete_object, get_timeline, roll_timeline, move_feature, suppress_feature,

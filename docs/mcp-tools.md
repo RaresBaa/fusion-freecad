@@ -99,6 +99,7 @@ document, and any expression can use them as `Parameters.<name>`.
 | `set_parameters({name: value})` | Numbers are mm; `"30 deg"`, `"5 mm"`, or `"=width / 2"` (expression); `{"value": 4, "kind": "number"}` for unitless |
 | `get_parameters` | Parameters (value, unit, expression) and every expression in the document |
 | `delete_parameter(name)` | |
+| `rename_parameter(name, new_name)` | Expressions that use it follow the new name |
 | `set_expression(name, property, expression)` | Drive a property, e.g. a Pad's `Length` = `"Parameters.thickness"`; a sketch's `Constraints.width`; `null` removes it |
 
 Typical use: `set_parameters({"width": 40})`, name a sketch dimension with
