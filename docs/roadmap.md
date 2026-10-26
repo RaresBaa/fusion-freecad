@@ -74,7 +74,20 @@
 - [ ] Marking menu: Fusion's radial right-click menu in the 3D view
 - [ ] Sketch: closer to Fusion's sketcher (constraint inference, dimension on create)
 
-## 7. Distribution
+## 7. More MCP tools
+
+- [ ] Construction geometry: datum planes (offset, angled, through 3 points), axes,
+      points; sketches on them
+- [ ] Self-checks: `check_geometry` (valid, closed, self-intersections),
+      `interference` between bodies, `mass_properties` (mass, centre of mass, inertia)
+- [ ] Sketch tools: project model edges, offset a profile, fillet corners,
+      `add_constraint` / `delete_constraint`
+- [ ] Features: draft, two-sided and tapered extrudes, text / emboss, rib
+- [ ] Bodies: `move_body`, `copy_body`, `appearance` (colour)
+- [ ] 2D drawings (TechDraw): views and dimensions, export to PDF / DXF
+- [ ] MCP resources (document tree, docs) and prompts
+
+## 8. Distribution
 
 - [x] Distributed from GitHub: NixOS through the flake, Windows through a release zip
       built by hand with `scripts/build-release.ps1` and uploaded to a GitHub release
