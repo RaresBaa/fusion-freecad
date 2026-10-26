@@ -54,20 +54,35 @@ def start(obj, face_name):
                          % (face_name, kind))
 
 
-def handle_frame(face):
+def handle_frame(face, solid=None):
     """Where the drag arrow sits on a face: a point on it and the outward normal there.
 
     That normal is the way a positive distance moves the face, flat or not: a pad grows
     outwards, a hole (whose normal points into the hole) shrinks, a boss grows.
+    On a cylinder of ``solid`` the arrow goes to an open end (a hole's rim, a boss's
+    top), where it can be seen, rather than halfway down a bore.
     """
-    if type(face.Surface).__name__ == "Plane":
+    kind = type(face.Surface).__name__
+    if kind == "Plane":
         point = face.CenterOfMass
         u, v = face.Surface.parameter(point)
-    else:
-        u0, u1, v0, v1 = face.ParameterRange
-        u, v = (u0 + u1) / 2, (v0 + v1) / 2
-        point = face.valueAt(u, v)
-    return point, face.normalAt(u, v)
+        return point, face.normalAt(u, v)
+    u0, u1, v0, v1 = face.ParameterRange
+    u, v = (u0 + u1) / 2, (v0 + v1) / 2
+    if kind == "Cylinder" and solid is not None:
+        v = max((v0, v1), key=lambda end: _open_end_rank(face, solid, u, end, (v0 + v1) / 2))
+    return face.valueAt(u, v), face.normalAt(u, v)
+
+
+def _open_end_rank(face, solid, u, end, middle):
+    """Sort key for a cylinder end: open ones (just past the end, along the axis, is
+    outside the solid) first, then the higher one."""
+    point = face.valueAt(u, end)
+    outwards = face.valueAt(u, end) - face.valueAt(u, middle)
+    if outwards.Length > 1e-9:
+        outwards.normalize()
+    probe = point + outwards * 0.01
+    return (not solid.isInside(probe, 1e-7, True), point.z, point.y, point.x)
 
 
 class PressPull:

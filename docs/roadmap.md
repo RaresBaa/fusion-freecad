@@ -48,8 +48,8 @@
       positive pads, negative pockets; MCP tool `press_pull`
 - [x] Press/Pull drag handle: an orange arrow on the face, along its outward normal;
       dragging it sets the distance (snapped) with live preview, typing moves it
-- [ ] Press/Pull arrow on holes: it sits halfway down the bore, so it's mostly hidden;
-      start it at the hole's rim (or draw it on top)
+- [x] Press/Pull arrow on holes and bosses sits at the open end (rim or top), not
+      halfway down the bore
 - [x] Press/Pull on cylindrical faces: resizes the hole, fillet or sketch circle
 
 ## 5. Add-ons

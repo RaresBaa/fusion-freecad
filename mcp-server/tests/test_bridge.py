@@ -325,7 +325,7 @@ def test_press_pull_handle_frame(freecad):
 from fusion_freecad.presspull import start, handle_frame
 def frame(feature, face):
     op = start(doc.getObject(feature), face)
-    point, normal = handle_frame(op.face)
+    point, normal = handle_frame(op.face, op.base.Shape)
     return [list(point), list(normal)]
 result = {name: frame(*name.split(":")) for name in %r}
 """ % [_face(freecad, hole, [0, 0, 1]), _face(freecad, hole, [1, 0, 0]),
@@ -334,10 +334,31 @@ result = {name: frame(*name.split(":")) for name in %r}
     # The top face has a hole in it, which pulls its centre of mass off the middle.
     assert top[1] == pytest.approx([0, 0, 1]) and top[0][2] == pytest.approx(10)
     assert side == [pytest.approx([20, 0, 5]), pytest.approx([1, 0, 0])]
-    # In a hole the arrow points at the axis: pulling makes the hole smaller.
-    (x, y, _), (nx, ny, nz) = bore
-    assert math.hypot(x - 10, y) == pytest.approx(2)
+    # In a hole the arrow points at the axis: pulling makes the hole smaller. It sits
+    # on the rim, where it can be seen, not halfway down.
+    (x, y, z), (nx, ny, nz) = bore
+    assert math.hypot(x - 10, y) == pytest.approx(2) and z == pytest.approx(10)
     assert nz == pytest.approx(0) and nx * (x - 10) + ny * y == pytest.approx(-2)
+
+    # A blind hole's rim is its open end, not its bottom, even when that's the lower
+    # end (drilled from below); a boss's is its top.
+    blind = freecad.call("pocket", sketch=_hole_sketch(freecad, hole, [[-10, 0]], radius=1.5),
+                         length=4)["feature"]
+    under = freecad.call("create_sketch", face=_face(freecad, blind, [0, 0, -1]), geometry=[
+        {"type": "circle", "center": [0, 5], "radius": 1}])["sketch"]
+    from_below = freecad.call("pocket", sketch=under, length=4)["feature"]
+    boss = freecad.call("pad", sketch=_hole_sketch(freecad, from_below, [[0, 0]], radius=3),
+                        length=5)["feature"]
+    out = freecad.call("run_python", code="""
+from fusion_freecad.presspull import start, handle_frame
+result = []
+for feature, face in %r:
+    op = start(doc.getObject(feature), face)
+    result.append(handle_frame(op.face, op.base.Shape)[0].z)
+""" % [_cylinder_face(freecad, blind, 1.5).split(":"),
+       _cylinder_face(freecad, from_below, 1).split(":"),
+       _cylinder_face(freecad, boss, 3).split(":")])["result"]
+    assert out == [pytest.approx(10), pytest.approx(0), pytest.approx(15)]
 
 
 def _block(freecad, name, width=40, depth=20, height=10):

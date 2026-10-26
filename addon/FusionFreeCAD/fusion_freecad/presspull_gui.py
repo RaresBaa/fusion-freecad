@@ -84,7 +84,7 @@ class DragHandle:
         self.dragging = False
         self._pending = None
         self._syncing = False
-        point, normal = handle_frame(op.face)
+        point, normal = handle_frame(op.face, op.base.Shape)
         diagonal = op.body.Shape.BoundBox.DiagonalLength
         length = min(max(diagonal * 0.15, 3.0), 60.0)
         self.step = _nice_step(length / 20)

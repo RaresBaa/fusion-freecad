@@ -80,7 +80,8 @@ solid.
 The drag arrow (`presspull_gui.DragHandle`) is a Coin `SoTranslate1Dragger` placed by
 `presspull.handle_frame`: on the face, along its outward normal, which is the way a
 positive distance moves any face (a pad grows out, a hole's normal points at its axis,
-so it shrinks). The dragger's frame has no scale, so its translation is the distance in
+so it shrinks). On a cylinder it goes to an open end (just past it along the axis is
+outside the solid; the higher one if both are), so it isn't hidden down a bore. The dragger's frame has no scale, so its translation is the distance in
 mm. Coin calls back while handling the mouse event, where changing the model isn't
 safe, so the snapped distance is posted to the Qt event loop and set in the panel.
 
