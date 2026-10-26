@@ -853,6 +853,45 @@ def test_construction_geometry(freecad):
     assert pt["mode"] == "Vertex"
 
 
+def test_sketch_tools(freecad):
+    pad = _block(freecad, "SketchTools")  # 40 x 20 x 10 centred, z 0..10
+    top = _face(freecad, pad, [0, 0, 1])
+
+    # Project the top face's outline and pad it: the block grows by 5.
+    sk = freecad.call("create_sketch", face=top, geometry=[])["sketch"]
+    p = freecad.call("project_to_sketch", sketch=sk, elements=[top], defining=True)
+    assert len(p["external_indices"]) == 4 and p["external_indices"][0] == -3
+    info = freecad.call("get_object", name=sk)["sketch"]
+    assert [e["index"] for e in info["external"]] == p["external_indices"]
+    grown = freecad.call("pad", sketch=sk, length=5)
+    assert "errors" not in grown
+    assert grown["shape"]["volume"] == pytest.approx(40 * 20 * 15)
+
+    # Offset a 30 x 20 rectangle outward by 2: padding both makes a 2 mm wall.
+    freecad.call("new_document", name="SketchOffset")
+    sk = freecad.call("create_sketch", geometry=[
+        {"type": "rectangle", "corner": [0, 0], "width": 30, "height": 20}])["sketch"]
+    o = freecad.call("offset_sketch", sketch=sk, distance=2)
+    assert len(o["geometry_indices"]) == 8 and o["solver_ok"]  # 4 lines, 4 corner arcs
+    wall = freecad.call("pad", sketch=sk, length=1)
+    outer = 30 * 20 + 2 * 2 * (30 + 20) + math.pi * 2 ** 2
+    assert wall["shape"]["volume"] == pytest.approx(outer - 30 * 20)
+    sharp = freecad.call("offset_sketch", sketch=sk, distance=-1, geometry=[0, 1, 2, 3],
+                         join="intersection")
+    assert len(sharp["geometry_indices"]) == 4
+
+    # Round every corner of a rectangle.
+    freecad.call("new_document", name="SketchFillet")
+    sk = freecad.call("create_sketch", geometry=[
+        {"type": "rectangle", "corner": [0, 0], "width": 30, "height": 20}])["sketch"]
+    f = freecad.call("fillet_sketch", sketch=sk, radius=3)
+    assert len(f["geometry_indices"]) == 4 and f["solver_ok"]
+    plate = freecad.call("pad", sketch=sk, length=1)
+    assert plate["shape"]["volume"] == pytest.approx(30 * 20 - (4 - math.pi) * 3 ** 2)
+    with pytest.raises(BridgeError, match="no corner"):
+        freecad.call("fillet_sketch", sketch=sk, radius=1, corners=[[15, 10]])
+
+
 def test_export_dxf_outline(freecad, tmp_path):
     base = _block(freecad, "Dxf", height=2)
     freecad.call("hole", sketch=_hole_sketch(freecad, base, [[10, 0]], radius=3),

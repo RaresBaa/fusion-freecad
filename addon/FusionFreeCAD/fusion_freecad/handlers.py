@@ -331,8 +331,21 @@ def _sketch_info(sketch):
     constraints = [{"index": i, "type": c.Type, "name": c.Name or None,
                     "value": _round(c.Value) if c.Value else None}
                    for i, c in enumerate(sketch.Constraints)]
-    return {"geometry": geometry, "constraints": constraints,
+    info = {"geometry": geometry, "constraints": constraints,
             "fully_constrained": bool(getattr(sketch, "FullyConstrained", False))}
+    # Projected geometry: GeoId -1 and -2 are the sketch axes, then one per projection.
+    external = []
+    for i, geo in enumerate(sketch.ExternalGeo[2:], 2):
+        item = {"index": -(i + 1), "type": type(geo).__name__}
+        if hasattr(geo, "StartPoint") and hasattr(geo, "EndPoint"):
+            item["start"] = _vec_out(geo.StartPoint)[:2]
+            item["end"] = _vec_out(geo.EndPoint)[:2]
+        if hasattr(geo, "Center"):
+            item["center"] = _vec_out(geo.Center)[:2]
+        external.append(item)
+    if external:
+        info["external"] = external
+    return info
 
 
 def get_topology(name, document=None, max_items=300):
@@ -1493,9 +1506,11 @@ HANDLERS = {fn.__name__: fn for fn in [
 
 
 def _extra_handlers():
-    from . import handlers_addons, handlers_assembly, handlers_construct, handlers_inspect
+    from . import (handlers_addons, handlers_assembly, handlers_construct,
+                   handlers_inspect, handlers_sketch)
     return dict(handlers_addons.HANDLERS, **handlers_assembly.HANDLERS,
-                **handlers_construct.HANDLERS, **handlers_inspect.HANDLERS)
+                **handlers_construct.HANDLERS, **handlers_inspect.HANDLERS,
+                **handlers_sketch.HANDLERS)
 
 
 HANDLERS.update(_extra_handlers())

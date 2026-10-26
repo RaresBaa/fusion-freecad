@@ -162,6 +162,45 @@ def mass_properties(name: str,
                        document=document)
 
 
+@mcp.tool()
+def project_to_sketch(sketch: str,
+                      elements: Annotated[list[str], Field(
+                          description="Model edges, faces or vertices, e.g. "
+                                      "['Pad:Edge3', 'Pad:Face6']")],
+                      defining: Annotated[bool, Field(
+                          description="Also use them as sketch geometry, e.g. as a "
+                                      "profile to pad")] = False,
+                      document: Doc = None) -> dict[str, Any]:
+    """Project model geometry into a sketch (Fusion: Project). The projections follow
+    the model; constrain to them with their negative indices (external_indices)."""
+    return client.call("project_to_sketch", sketch=sketch, elements=elements,
+                       defining=defining, document=document)
+
+
+@mcp.tool()
+def offset_sketch(sketch: str,
+                  distance: Annotated[float, Field(
+                      description="mm; positive goes outward from a closed profile")],
+                  geometry: Annotated[list[int] | None, Field(
+                      description="Indices to offset; default all non-construction")] = None,
+                  join: Literal["arc", "intersection"] = "arc",
+                  document: Doc = None) -> dict[str, Any]:
+    """Offset sketch geometry (Fusion: Offset), e.g. a wall around a profile."""
+    return client.call("offset_sketch", sketch=sketch, distance=distance,
+                       geometry=geometry, join=join, document=document)
+
+
+@mcp.tool()
+def fillet_sketch(sketch: str, radius: float,
+                  corners: Annotated[list[list[float]] | None, Field(
+                      description="[[x, y], ...] corner points in sketch coordinates; "
+                                  "default every corner between two lines")] = None,
+                  document: Doc = None) -> dict[str, Any]:
+    """Round sketch corners (Fusion: Sketch Fillet)."""
+    return client.call("fillet_sketch", sketch=sketch, radius=radius, corners=corners,
+                       document=document)
+
+
 # --- construction geometry -------------------------------------------------
 
 @mcp.tool()

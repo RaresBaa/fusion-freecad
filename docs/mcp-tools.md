@@ -39,6 +39,9 @@ names can change when earlier features change, so look them up again after edits
 |---|---|
 | `create_body(label)` | New component / body |
 | `create_sketch(geometry, plane \| face, offset, constraints)` | Create Sketch; `plane` is XY/XZ/YZ or a datum plane |
+| `project_to_sketch(sketch, elements, defining?)` | Project model edges/faces/vertices into a sketch; returns their negative `external_indices`; `defining` makes them profile geometry |
+| `offset_sketch(sketch, distance, geometry?, join?)` | Offset chains of sketch geometry; positive goes outward; `join` is `arc` or `intersection` |
+| `fillet_sketch(sketch, radius, corners?)` | Round corners between lines (default all) |
 | `add_sketch_geometry(sketch, geometry, constraints)` | Edit sketch |
 | `set_dimension(sketch, constraint, value \| expression, name)` | Edit a sketch dimension by index or name; name it; or drive it by an expression |
 | `delete_sketch_geometry(sketch, geometry, constraints)` | Delete sketch geometry (and its constraints) or constraints |
