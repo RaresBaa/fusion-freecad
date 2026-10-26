@@ -19,3 +19,17 @@ def test_tools_registered():
     sketch_schema = getattr(tool, "input_schema", None) or tool.inputSchema  # mcp 2.x / 1.x
     assert "geometry" in sketch_schema["required"]
     assert "rectangle" in sketch_schema["properties"]["geometry"]["description"]
+
+
+def test_resources_and_prompts():
+    resources = [str(r.uri) for r in asyncio.run(mcp.list_resources())]
+    assert "freecad://documents" in resources
+    templates = [getattr(t, "uri_template", None) or t.uriTemplate
+                 for t in asyncio.run(mcp.list_resource_templates())]
+    assert {"freecad://{document}/objects", "freecad://{document}/timeline",
+            "freecad://{document}/parameters"} <= set(templates)
+    prompts = {p.name for p in asyncio.run(mcp.list_prompts())}
+    assert {"model_part", "prepare_for_print", "review_model"} <= prompts
+    result = asyncio.run(mcp.get_prompt("prepare_for_print", {"body": "Bracket"}))
+    text = result.messages[0].content.text
+    assert "Bracket" in text and "PLA" in text and "check_geometry" in text

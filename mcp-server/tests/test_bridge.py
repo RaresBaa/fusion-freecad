@@ -956,6 +956,27 @@ def test_extrude_options_draft_and_text(freecad):
         freecad.call("text", text="x", on=top, font="no-such-font-anywhere")
 
 
+def test_mcp_resources_read_the_model(freecad, monkeypatch):
+    import asyncio
+    import json
+
+    from fusion_freecad_mcp import server
+
+    monkeypatch.setattr(server, "client", freecad)
+    _block(freecad, "Resources")
+    freecad.call("set_parameters", parameters={"width": 40})
+
+    def read(uri):
+        contents = list(asyncio.run(server.mcp.read_resource(uri)))
+        return json.loads(contents[0].content)
+
+    assert "Resources" in [d["name"] for d in read("freecad://documents")["documents"]]
+    names = [o["name"] for o in read("freecad://Resources/objects")["objects"]]
+    assert "Pad" in names
+    assert read("freecad://Resources/timeline")["tip"] == "Pad"
+    assert read("freecad://Resources/parameters")["parameters"][0]["name"] == "width"
+
+
 def test_export_dxf_outline(freecad, tmp_path):
     base = _block(freecad, "Dxf", height=2)
     freecad.call("hole", sketch=_hole_sketch(freecad, base, [[10, 0]], radius=3),

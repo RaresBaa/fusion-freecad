@@ -87,7 +87,8 @@
 - [ ] Rib (FreeCAD has no rib feature: a thickened open profile up to the solid)
 - [x] Bodies: `move_body`, `copy_body`, `appearance` (colour; not yet tried in the GUI)
 - [ ] 2D drawings (TechDraw): views and dimensions, export to PDF / DXF
-- [ ] MCP resources (document tree, docs) and prompts
+- [x] MCP resources (documents, objects, timeline, parameters) and prompts (model a
+      part, prepare for printing, review the model)
 
 ## 8. Distribution
 

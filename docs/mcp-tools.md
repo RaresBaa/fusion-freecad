@@ -187,3 +187,22 @@ These drive the add-ons in [addons.md](addons.md) and say so if one isn't instal
 `run_python(code)` runs Python inside FreeCAD with `App`, `Gui` (None when headless)
 and `doc` predefined. Assign to `result` to return a value; printed output comes back
 as `stdout`. It runs as one undo step.
+
+## Resources and prompts
+
+Resources let the agent read the model's state without a tool call:
+
+| Resource | Contents |
+|---|---|
+| `freecad://documents` | Open documents, which one is active |
+| `freecad://{document}/objects` | The document's objects |
+| `freecad://{document}/timeline` | The active body's feature history |
+| `freecad://{document}/parameters` | User parameters and every expression |
+
+Prompts are workflows you can pick in the client (in Claude Code, as `/mcp__freecad__...`):
+
+| Prompt | Does |
+|---|---|
+| `model_part(description)` | Build a parametric part from a description: parameters first, then features, then a check |
+| `prepare_for_print(body, material)` | Geometry check, interference, mass, printability review, STL export |
+| `review_model()` | Summarise the open model and what's fragile, without changing it |

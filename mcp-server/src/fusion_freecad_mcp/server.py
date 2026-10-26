@@ -5,6 +5,7 @@ the real work happens in addon/FusionFreeCAD/fusion_freecad/handlers.py.
 """
 
 import base64
+import json
 from typing import Annotated, Any, Literal
 
 try:  # mcp >= 2
@@ -28,7 +29,10 @@ polygon adds one line per side. Face and edge names (Face1, Edge7) come from
 get_topology and can change after earlier features are edited, so look them up again
 rather than reusing old names. Each modelling tool is one undo step in FreeCAD.
 If a tool result contains "errors", a feature failed to recompute: inspect it, then
-undo or fix it. Use run_python only when no dedicated tool fits.
+undo or fix it. Drive sizes from set_parameters so the user can change them later.
+For sketches on angled or offset planes, make a datum_plane first. Before exporting,
+check_geometry (and interference for assemblies); mass_properties gives the weight.
+Use run_python only when no dedicated tool fits.
 """
 
 mcp = MCPServer("freecad", instructions=INSTRUCTIONS)
@@ -1059,6 +1063,80 @@ def run_python(code: Annotated[str, Field(
     """Run Python inside FreeCAD for anything the other tools don't cover. Runs as one
     undo step."""
     return client.call("run_python", code=code, document=document)
+
+
+# --- resources: the model's state, readable without a tool call ------------------
+
+def _json(value):
+    return json.dumps(value, indent=1)
+
+
+@mcp.resource("freecad://documents", mime_type="application/json",
+              description="Open documents and which one is active")
+def documents_resource() -> str:
+    return _json(client.call("list_documents"))
+
+
+@mcp.resource("freecad://{document}/objects", mime_type="application/json",
+              description="A document's objects: bodies, features, sketches, datums")
+def objects_resource(document: str) -> str:
+    return _json(client.call("list_objects", document=document))
+
+
+@mcp.resource("freecad://{document}/timeline", mime_type="application/json",
+              description="The active body's feature history")
+def timeline_resource(document: str) -> str:
+    return _json(client.call("get_timeline", document=document))
+
+
+@mcp.resource("freecad://{document}/parameters", mime_type="application/json",
+              description="User parameters and every expression in the document")
+def parameters_resource(document: str) -> str:
+    return _json(client.call("get_parameters", document=document))
+
+
+# --- prompts: workflows the user can pick ------------------------------------
+
+@mcp.prompt(title="Model a part", description="Build a parametric part from a description")
+def model_part(description: str) -> str:
+    return f"""Model this part in FreeCAD: {description}
+
+Work like a careful CAD user:
+1. Pick the main sizes and set them as parameters (set_parameters), so they can be
+   changed later. Ask me if a size that matters is missing; assume the rest and say so.
+2. Build it feature by feature: sketch on a plane or face, then pad / pocket / revolve /
+   hole. Tie sketch dimensions and lengths to the parameters with expressions.
+3. Add fillets and chamfers last (get_topology for the edge names, fresh each time).
+4. After each feature, check the result has no "errors"; screenshot when it helps.
+5. Finish with check_geometry, a screenshot from isometric, and a short summary of the
+   features and the parameters I can change."""
+
+
+@mcp.prompt(title="Prepare for 3D printing",
+            description="Check a body and export it as STL for printing")
+def prepare_for_print(body: str = "Body", material: str = "PLA") -> str:
+    return f"""Get {body} ready to 3D print in {material}:
+1. check_geometry on {body}: it must be one valid, closed solid. Fix or report problems.
+2. If the document has several bodies or an assembly, run interference.
+3. set_material {material}, then mass_properties: report mass, size (bounding box) and
+   volume.
+4. Look for things that print badly: walls thinner than 0.8 mm, unsupported overhangs
+   past 45 degrees, tiny holes. Use measure where needed and screenshot to look. Suggest
+   fixes, but ask before changing the model.
+5. Export {body} as STL next to the document (or where I say) and tell me the path."""
+
+
+@mcp.prompt(title="Review the model",
+            description="Look over the open document and suggest improvements")
+def review_model() -> str:
+    return """Review the active FreeCAD document:
+1. list_objects and get_timeline: what is modelled, in which order.
+2. Any feature with errors? check_geometry on each body.
+3. get_parameters: are the main sizes parameters, or typed-in numbers that should be?
+   Are sketches fully constrained (get_object on each sketch)?
+4. Screenshot from a couple of views.
+Then summarise what the model is, what's fragile (e.g. edges picked by name that will
+renumber, unconstrained sketches), and what you'd change. Don't change anything yet."""
 
 
 def main():
