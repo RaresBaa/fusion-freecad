@@ -3,6 +3,10 @@
 #  - clones the add-ons listed in addons.json at their pinned commits
 #  - installs their Python packages where FreeCAD looks for them
 #
+# From a release zip (scripts/build-release.ps1) it copies instead: the addon, the
+# add-ons bundled in addons\ (no git needed) and the MCP server, to
+# %LOCALAPPDATA%\fusion-freecad\mcp-server, so the extracted folder can be deleted.
+#
 #   powershell -ExecutionPolicy Bypass -File scripts\install-addon.ps1 [options]
 #
 #   -Addons default|minimal|all|none   which add-ons (default: required + recommended;
@@ -10,7 +14,7 @@
 #   -Update                            move already installed add-ons to the pinned commit
 #   -ModDir <path>                     FreeCAD's Mod folder (default: newest user profile)
 #   -FreeCADDir <path>                 FreeCAD install (default: newest in Program Files)
-#   -Uninstall                         remove the Fusion FreeCAD link (add-ons are kept)
+#   -Uninstall                         remove Fusion FreeCAD (add-ons are kept)
 
 param(
     [ValidateSet("default", "minimal", "all", "none")]
@@ -24,6 +28,11 @@ param(
 $ErrorActionPreference = "Stop"
 $repo = Resolve-Path (Join-Path $PSScriptRoot "..")
 $source = Join-Path $repo "addon\FusionFreeCAD"
+# Release zips bundle the add-ons; a git checkout clones them.
+$bundled = Join-Path $repo "addons"
+$release = Test-Path $bundled
+# Marks folders this script copied (holds the add-on's commit), so they can be replaced.
+$marker = ".fusion-freecad-rev"
 
 if (-not $ModDir) {
     # FreeCAD 1.1+ keeps user data per version (v1-1, v1-2, ...); use the newest.
@@ -38,20 +47,37 @@ $userData = Split-Path $ModDir -Parent
 # --- Fusion FreeCAD itself -----------------------------------------------------
 
 $target = Join-Path $ModDir "FusionFreeCAD"
+$mcpTarget = Join-Path $env:LOCALAPPDATA "fusion-freecad\mcp-server"
 if (Test-Path $target) {
     $item = Get-Item $target -Force
-    if (-not ($item.Attributes -band [IO.FileAttributes]::ReparsePoint)) {
-        throw "$target exists and is a real folder, not a link. Remove it yourself first."
+    if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) {
+        # Removing a junction deletes the link only, never the repo files.
+        $item.Delete()
+        Write-Host "Removed existing link $target"
+    } elseif (Test-Path (Join-Path $target $marker)) {
+        Remove-Item -Recurse -Force $target
+        Write-Host "Removed existing copy $target"
+    } else {
+        throw "$target exists and is a real folder this script didn't make. Remove it yourself first."
     }
-    # Removing a junction deletes the link only, never the repo files.
-    $item.Delete()
-    Write-Host "Removed existing link $target"
 }
-if ($Uninstall) { return }
+if ($Uninstall) {
+    if (Test-Path $mcpTarget) {
+        Remove-Item -Recurse -Force $mcpTarget
+        Write-Host "Removed $mcpTarget"
+    }
+    return
+}
 
 New-Item -ItemType Directory -Force $ModDir | Out-Null
-New-Item -ItemType Junction -Path $target -Target $source | Out-Null
-Write-Host "Linked $target -> $source"
+if ($release) {
+    Copy-Item -Recurse $source $target
+    Set-Content -Path (Join-Path $target $marker) -Value "release" -Encoding ascii
+    Write-Host "Copied Fusion FreeCAD to $target"
+} else {
+    New-Item -ItemType Junction -Path $target -Target $source | Out-Null
+    Write-Host "Linked $target -> $source"
+}
 
 # --- add-ons ----------------------------------------------------------------------
 
@@ -63,15 +89,33 @@ $manifest = Get-Content (Join-Path $repo "addons.json") -Raw | ConvertFrom-Json
 $selected = @($manifest.addons | Where-Object { $sets -contains $_.set })
 $pythonPackages = @()
 
+function Install-Addon($addon, $dir) {
+    $copy = Join-Path $bundled $addon.name
+    if ($release -and (Test-Path $copy)) {
+        Copy-Item -Recurse $copy $dir
+        return
+    }
+    New-Item -ItemType Directory -Force $dir | Out-Null
+    git -C $dir init --quiet
+    git -C $dir remote add origin $addon.url
+    git -C $dir fetch --quiet --depth 1 origin $addon.rev
+    git -C $dir checkout --quiet --detach FETCH_HEAD
+}
+
 foreach ($addon in $selected) {
     $dir = Join-Path $ModDir $addon.name
     $pythonPackages += $addon.python
     if (Test-Path $dir) {
-        if (-not (Test-Path (Join-Path $dir ".git"))) {
-            Write-Host "  $($addon.name): already installed (not a git checkout), skipped"
+        $git = Test-Path (Join-Path $dir ".git")
+        $copied = Join-Path $dir $marker
+        if ($git) {
+            $current = (git -C $dir rev-parse HEAD).Trim()
+        } elseif (Test-Path $copied) {
+            $current = (Get-Content $copied -Raw).Trim()
+        } else {
+            Write-Host "  $($addon.name): already installed (not by this script), skipped"
             continue
         }
-        $current = (git -C $dir rev-parse HEAD).Trim()
         if ($current -eq $addon.rev) {
             Write-Host "  $($addon.name): up to date"
             continue
@@ -80,16 +124,17 @@ foreach ($addon in $selected) {
             Write-Host "  $($addon.name): installed at $($current.Substring(0,7)), tested with $($addon.rev.Substring(0,7)) (use -Update to switch)"
             continue
         }
-        git -C $dir fetch --quiet --depth 1 origin $addon.rev
-        git -C $dir checkout --quiet --detach FETCH_HEAD
+        if ($git -and -not $release) {
+            git -C $dir fetch --quiet --depth 1 origin $addon.rev
+            git -C $dir checkout --quiet --detach FETCH_HEAD
+        } else {
+            Remove-Item -Recurse -Force $dir
+            Install-Addon $addon $dir
+        }
         Write-Host "  $($addon.name): updated to $($addon.rev.Substring(0,7))"
         continue
     }
-    New-Item -ItemType Directory -Force $dir | Out-Null
-    git -C $dir init --quiet
-    git -C $dir remote add origin $addon.url
-    git -C $dir fetch --quiet --depth 1 origin $addon.rev
-    git -C $dir checkout --quiet --detach FETCH_HEAD
+    Install-Addon $addon $dir
     Write-Host "  $($addon.name): installed ($($addon.rev.Substring(0,7)))"
 }
 
@@ -121,4 +166,17 @@ if ($pythonPackages.Count -gt 0) {
     }
 }
 
+# --- MCP server (release only; a checkout runs it from mcp-server\) -----------------
+
+$mcpSource = Join-Path $repo "mcp-server"
+if ($release) {
+    if (Test-Path $mcpTarget) { Remove-Item -Recurse -Force $mcpTarget }
+    New-Item -ItemType Directory -Force (Split-Path $mcpTarget -Parent) | Out-Null
+    Copy-Item -Recurse $mcpSource $mcpTarget
+    $mcpSource = $mcpTarget
+    Write-Host "Copied the MCP server to $mcpTarget"
+}
+
 Write-Host "Done. Restart FreeCAD and pick the 'Fusion' workbench."
+Write-Host "To connect Claude Code (needs uv, https://docs.astral.sh/uv/):"
+Write-Host "  claude mcp add --scope user freecad -- uv --directory `"$mcpSource`" run fusion-freecad-mcp"
