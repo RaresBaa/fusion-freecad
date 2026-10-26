@@ -70,86 +70,123 @@ def _nice_step(x):
     return step
 
 
-class DragHandle:
-    """Fusion's drag arrow: a Coin 1D dragger on the face, along its outward normal.
+class DragHandle(QtCore.QObject):
+    """Fusion's drag arrow, on the face along its outward normal.
 
-    The dragger's frame has no scale, so its translation is the distance in mm.
-    ``on_drag(distance)`` gets the snapped distance, outside Coin's event handling.
+    Dragging is done in Qt, not with a Coin dragger: an event filter on the 3D view
+    takes presses near the arrow on screen, so navigation never sees them, and moves
+    the arrow and the model from Qt's event handling. (A Coin dragger lost its grab
+    when a recompute changed a hole's sketch mid-drag.) ``on_drag(distance)`` gets the
+    snapped distance in mm.
     """
+
+    PICK_PIXELS = 8
 
     def __init__(self, op, on_drag):
         from pivy import coin
 
+        super().__init__()
         self.on_drag = on_drag
         self.dragging = False
-        self._pending = None
-        self._syncing = False
-        point, normal = handle_frame(op.face, op.base.Shape)
+        self.hover = False
+        self.distance = 0.0
+        self.base, self.normal = handle_frame(op.face, op.base.Shape)
         diagonal = op.body.Shape.BoundBox.DiagonalLength
-        length = min(max(diagonal * 0.15, 3.0), 60.0)
-        self.step = _nice_step(length / 20)
+        self.length = min(max(diagonal * 0.15, 3.0), 60.0)
+        self.step = _nice_step(self.length / 20)
 
         frame = coin.SoTransform()
-        frame.translation.setValue(point.x, point.y, point.z)
-        frame.rotation.setValue(coin.SbRotation(coin.SbVec3f(1, 0, 0),
-                                                coin.SbVec3f(normal.x, normal.y, normal.z)))
-        self.dragger = coin.SoTranslate1Dragger()
-        self.dragger.setPart("translator", _arrow(length, ARROW_COLOR))
-        self.dragger.setPart("translatorActive", _arrow(length, ARROW_ACTIVE_COLOR))
-        self.dragger.setPart("feedback", coin.SoSeparator())
-        self.dragger.setPart("feedbackActive", coin.SoSeparator())
-        self.dragger.addStartCallback(self._started)
-        self.dragger.addValueChangedCallback(self._moved)
-        self.dragger.addFinishCallback(self._finished)
+        frame.translation.setValue(self.base.x, self.base.y, self.base.z)
+        n = self.normal
+        frame.rotation.setValue(coin.SbRotation(coin.SbVec3f(1, 0, 0), coin.SbVec3f(n.x, n.y, n.z)))
+        self.offset = coin.SoTranslation()
+        self.looks = coin.SoSwitch()
+        self.looks.addChild(_arrow(self.length, ARROW_COLOR))
+        self.looks.addChild(_arrow(self.length, ARROW_ACTIVE_COLOR))
+        self.looks.whichChild = 0
         self.root = coin.SoSeparator()
-        self.root.addChild(frame)
-        self.root.addChild(self.dragger)
+        for node in (frame, self.offset, self.looks):
+            self.root.addChild(node)
         self.view = Gui.ActiveDocument.ActiveView
         self.view.getSceneGraph().addChild(self.root)
+        self.viewport = self.view.graphicsView().viewport()
+        self.viewport.installEventFilter(self)
 
     def follow(self, distance):
         """Move the arrow to a distance typed in the panel."""
-        if self.dragging:
-            return
-        self._syncing = True
-        try:
-            self.dragger.translation.setValue(distance, 0, 0)
-        finally:
-            self._syncing = False
+        if not self.dragging:
+            self._place(distance)
 
     def remove(self):
         try:
+            self.viewport.removeEventFilter(self)
+            self.viewport.unsetCursor()
             self.view.getSceneGraph().removeChild(self.root)
         except Exception:  # the view was closed
             pass
 
-    # Coin calls these while handling a mouse event; changing the model from inside
-    # that traversal isn't safe, so the work is posted to the Qt event loop.
+    def _place(self, distance):
+        self.distance = distance
+        self.offset.translation.setValue(distance, 0, 0)
 
-    def _started(self, *_):
-        self.dragging = True
+    def _screen(self, along):
+        """Qt viewport coordinates of the point ``along`` mm up the arrow's axis."""
+        x, y = self.view.getPointOnViewport(self.base + self.normal * along)
+        return QtCore.QPointF(x, self.viewport.height() - y)
 
-    def _moved(self, *_):
-        if not self._syncing:
-            self._post()
+    def _near(self, pos):
+        a, b = self._screen(self.distance), self._screen(self.distance + self.length)
+        ab, ap = b - a, pos - a
+        length2 = QtCore.QPointF.dotProduct(ab, ab)
+        t = 0.0 if length2 < 1e-9 else max(0.0, min(1.0, QtCore.QPointF.dotProduct(ap, ab) / length2))
+        closest = a + ab * t
+        return (pos - closest).manhattanLength() <= self.PICK_PIXELS
 
-    def _finished(self, *_):
-        self.dragging = False
-        self._post()  # also snaps the arrow to the delivered distance
+    def _set_hover(self, hover):
+        if hover != self.hover:
+            self.hover = hover
+            self.looks.whichChild = 1 if hover else 0
+            if hover:
+                self.viewport.setCursor(QtCore.Qt.PointingHandCursor)
+            else:
+                self.viewport.unsetCursor()
 
-    def _post(self):
-        if self._pending is None:
-            QtCore.QTimer.singleShot(0, self._deliver)
-        x = self.dragger.translation.getValue()[0]
-        self._pending = round(x / self.step) * self.step
-
-    def _deliver(self):
-        distance, self._pending = self._pending, None
-        if distance is None:
-            return
-        self.on_drag(distance)
-        if not self.dragging:
-            self.follow(distance)
+    def eventFilter(self, obj, event):
+        kind = event.type()
+        if kind not in (QtCore.QEvent.MouseButtonPress, QtCore.QEvent.MouseMove,
+                        QtCore.QEvent.MouseButtonRelease):
+            return False
+        pos = QtCore.QPointF(event.position() if hasattr(event, "position") else event.pos())
+        if kind == QtCore.QEvent.MouseButtonPress:
+            if event.button() != QtCore.Qt.LeftButton or not self._near(pos):
+                return False
+            # Screen direction of the axis, measured once: dragging along it by its
+            # length in pixels moves the face by the arrow's length in mm.
+            a, b = self._screen(self.distance), self._screen(self.distance + self.length)
+            axis = b - a
+            if QtCore.QPointF.dotProduct(axis, axis) < 4:  # pointing at the camera
+                return True
+            self.dragging = True
+            self._drag = (pos, self.distance, axis)
+            self._set_hover(True)
+            return True
+        if kind == QtCore.QEvent.MouseMove:
+            if not self.dragging:
+                if not event.buttons():
+                    self._set_hover(self._near(pos))
+                return False
+            start, distance, axis = self._drag
+            moved = QtCore.QPointF.dotProduct(pos - start, axis) / QtCore.QPointF.dotProduct(axis, axis)
+            snapped = round((distance + moved * self.length) / self.step) * self.step
+            if abs(snapped - self.distance) > 1e-9:
+                self._place(snapped)
+                self.on_drag(snapped)
+            return True
+        if self.dragging:  # release
+            self.dragging = False
+            self._set_hover(self._near(pos))
+            return True
+        return False
 
 
 class PressPullPanel:
