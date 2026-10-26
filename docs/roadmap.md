@@ -76,7 +76,7 @@
 
 ## 7. More MCP tools
 
-- [ ] Construction geometry: datum planes (offset, angled, through 3 points), axes,
+- [x] Construction geometry: datum planes (offset, angled, through 3 points), axes,
       points; sketches on them
 - [x] Self-checks: `check_geometry` (valid, closed, self-intersections),
       `interference` between bodies, `mass_properties` (mass, centre of mass, inertia),

@@ -22,6 +22,9 @@ tool and defaults to the active document. Objects can be named by internal name
 | `get_object(name)` | Properties and shape summary; for sketches also geometry and constraints |
 | `get_topology(name)` | Faces (type, area, centre, normal) and edges (type, length, endpoints/radius) |
 | `measure(a, b?)` | One element (`"Pad:Edge3"`, `"Pad:Face6"`, `"Pad"`): length, area, radius, volume. Two: distance, closest points, angle, and `plane_distance` for parallel faces |
+| `datum_plane(on, offset?, angle?, about?)` | Construction plane: offset from a plane or face, tilted about an edge in it, or through three points (`on=[...]`); sketch on it with `create_sketch(plane=<name>)` |
+| `datum_axis(through)` | Construction axis: a straight edge, two points, two planes (intersection), or a circular edge / cylindrical face (its axis) |
+| `datum_point(at, offset?)` | Construction point at a vertex or the centre of an edge, face or circle |
 | `check_geometry(name)` | Valid closed solid? Lists self-intersections, open shells, failed recomputes |
 | `interference(names?)` | Overlapping parts (default: every visible body and link) with the overlap volume and box; `include_touching` lists contacts too |
 | `set_material(name, material)` | Library material, e.g. `"PLA"`, `"Aluminum-6061-T6"` |
@@ -35,7 +38,7 @@ names can change when earlier features change, so look them up again after edits
 | Tool | Fusion equivalent |
 |---|---|
 | `create_body(label)` | New component / body |
-| `create_sketch(geometry, plane \| face, offset, constraints)` | Create Sketch |
+| `create_sketch(geometry, plane | face, offset, constraints)` | Create Sketch; `plane` is XY/XZ/YZ or a datum plane |\| face, offset, constraints)` | Create Sketch |
 | `add_sketch_geometry(sketch, geometry, constraints)` | Edit sketch |
 | `set_dimension(sketch, constraint, value \| expression, name)` | Edit a sketch dimension by index or name; name it; or drive it by an expression |
 | `delete_sketch_geometry(sketch, geometry, constraints)` | Delete sketch geometry (and its constraints) or constraints |

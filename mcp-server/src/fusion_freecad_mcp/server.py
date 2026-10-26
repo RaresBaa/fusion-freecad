@@ -162,6 +162,52 @@ def mass_properties(name: str,
                        document=document)
 
 
+# --- construction geometry -------------------------------------------------
+
+@mcp.tool()
+def datum_plane(on: Annotated[str | list[str], Field(
+                    description="A plane or planar face, e.g. 'XY' or 'Pad:Face6'; or "
+                                "three vertices/points for a plane through them")] = "XY",
+                offset: Annotated[float, Field(
+                    description="mm along the plane's normal")] = 0.0,
+                angle: Annotated[float, Field(
+                    description="Tilt in degrees about `about`")] = 0.0,
+                about: Annotated[str | None, Field(
+                    description="Straight edge or axis lying in the plane to tilt "
+                                "about; default the plane's X direction")] = None,
+                body: str | None = None, label: str | None = None,
+                document: Doc = None) -> dict[str, Any]:
+    """Construction plane (Fusion: Offset Plane, Plane at Angle, Plane Through Three
+    Points), attached so it follows the model. Sketch on it with
+    create_sketch(plane=<its name>)."""
+    return client.call("datum_plane", on=on, offset=offset, angle=angle, about=about,
+                       body=body, label=label, document=document)
+
+
+@mcp.tool()
+def datum_axis(through: Annotated[str | list[str], Field(
+                   description="A straight edge; two points; two planes (their "
+                               "intersection); or a circular edge / cylindrical face "
+                               "(its axis)")],
+               body: str | None = None, label: str | None = None,
+               document: Doc = None) -> dict[str, Any]:
+    """Construction axis, e.g. for polar patterns, revolves or tilting a plane."""
+    return client.call("datum_axis", through=through, body=body, label=label,
+                       document=document)
+
+
+@mcp.tool()
+def datum_point(at: Annotated[str | list[str], Field(
+                    description="A vertex, or an edge/face/circle (its centre)")],
+                offset: Annotated[list[float] | None, Field(
+                    description="[x, y, z] mm from there")] = None,
+                body: str | None = None, label: str | None = None,
+                document: Doc = None) -> dict[str, Any]:
+    """Construction point."""
+    return client.call("datum_point", at=at, offset=offset, body=body, label=label,
+                       document=document)
+
+
 # --- modelling ---------------------------------------------------------------
 
 @mcp.tool()
@@ -194,8 +240,9 @@ Geometry indices refer to this sketch; point positions are 1=start, 2=end, 3=cen
 @mcp.tool()
 def create_sketch(
     geometry: Annotated[list[dict[str, Any]], Field(description=GEOMETRY_HELP)],
-    plane: Annotated[Literal["XY", "XZ", "YZ"], Field(
-        description="Body origin plane to sketch on (ignored when face is given)")] = "XY",
+    plane: Annotated[str, Field(
+        description="'XY', 'XZ', 'YZ' (body origin) or a datum plane from datum_plane "
+                    "(ignored when face is given)")] = "XY",
     face: Annotated[str | None, Field(
         description="Sketch on a planar face instead, e.g. 'Pad:Face6' (see get_topology)")] = None,
     offset: Annotated[float, Field(description="Offset along the plane normal, mm")] = 0.0,

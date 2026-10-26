@@ -798,6 +798,61 @@ doc.addObject("Part::Feature", "Bow").Shape = bow
     assert freecad.call("interference", names=["Body", "Body002"])["interferences"] == []
 
 
+def _edge(freecad, feature, center):
+    topo = freecad.call("get_topology", name=feature)
+    return "%s:%s" % (feature, next(e["name"] for e in topo["edges"]
+                                    if e["center"] == pytest.approx(center)))
+
+
+def test_construction_geometry(freecad):
+    pad = _block(freecad, "Construct")  # 40 x 20 x 10 centred, z 0..10
+    cos30, sin30 = math.cos(math.radians(30)), 0.5
+
+    p = freecad.call("datum_plane", on="XY", offset=25)
+    assert p["mode"] == "FlatFace"
+    assert p["placement"]["base"] == pytest.approx([0, 0, 25])
+    assert p["placement"]["axis"] == pytest.approx([0, 0, 1])
+    # Sketch on it and pad down to the block: the body grows to z = 25.
+    sk = freecad.call("create_sketch", plane=p["feature"], geometry=[
+        {"type": "circle", "center": [0, 0], "radius": 3}])
+    pad2 = freecad.call("pad", sketch=sk["sketch"], up_to_face=_face(freecad, pad, [0, 0, 1]),
+                        reversed=True)
+    assert "errors" not in pad2
+    assert pad2["shape"]["bound_box"]["max"][2] == pytest.approx(25)
+
+    # Tilted 30 degrees about the top face's back edge (along X at y = 10, z = 10).
+    top = _face(freecad, pad, [0, 0, 1])
+    edge = _edge(freecad, pad, [0, 10, 10])
+    t = freecad.call("datum_plane", on=top, angle=30, about=edge)
+    assert abs(t["placement"]["axis"][2]) == pytest.approx(cos30)
+    assert abs(t["placement"]["axis"][1]) == pytest.approx(sin30)
+    # Still through the edge: its midpoint lies in the plane.
+    base, axis = t["placement"]["base"], t["placement"]["axis"]
+    assert sum((c - b) * n for c, b, n in zip([0, 10, 10], base, axis))         == pytest.approx(0, abs=1e-5)  # results are rounded to 1e-6
+    with pytest.raises(BridgeError, match="lie in the plane"):
+        freecad.call("datum_plane", on="XY", angle=10, about=edge)
+
+    three = freecad.call("datum_plane", on=[
+        "%s:%s" % (pad, v) for v in ("Vertex1", "Vertex2", "Vertex3")])
+    assert three["mode"] == "ThreePointsPlane"
+
+    a = freecad.call("datum_axis", through=["XY", "YZ"])
+    assert a["mode"] == "IntersectionLine"
+    assert [abs(c) for c in a["placement"]["axis"]] == pytest.approx([0, 1, 0])
+    a = freecad.call("datum_axis", through=edge)
+    assert [abs(c) for c in a["placement"]["axis"]] == pytest.approx([1, 0, 0])
+    side = next(f["name"] for f in freecad.call("get_topology", name=pad2["feature"])["faces"]
+                if f["surface"] == "Cylinder")
+    hole = freecad.call("datum_axis", through="%s:%s" % (pad2["feature"], side))
+    assert hole["mode"] == "AxisOfCurvature"
+    assert [abs(c) for c in hole["placement"]["axis"]] == pytest.approx([0, 0, 1])
+
+    pt = freecad.call("datum_point", at=top, offset=[0, 0, 5])
+    assert pt["point"] == pytest.approx([0, 0, 15])
+    pt = freecad.call("datum_point", at="%s:Vertex1" % pad)
+    assert pt["mode"] == "Vertex"
+
+
 def test_export_dxf_outline(freecad, tmp_path):
     base = _block(freecad, "Dxf", height=2)
     freecad.call("hole", sketch=_hole_sketch(freecad, base, [[10, 0]], radius=3),

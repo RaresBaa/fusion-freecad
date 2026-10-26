@@ -478,10 +478,15 @@ def create_sketch(doc, body=None, plane="XY", face=None, offset=0.0,
         sketch.AttachmentSupport = [(_obj(doc, obj_name), sub)]
     else:
         role = _PLANE_ROLES.get(str(plane).upper())
-        if role is None:
-            raise HandlerError("plane must be XY, XZ or YZ, got %r" % plane)
-        origin_plane = next(f for f in body_obj.Origin.OriginFeatures if f.Role == role)
-        sketch.AttachmentSupport = [(origin_plane, "")]
+        if role is not None:
+            support = next(f for f in body_obj.Origin.OriginFeatures if f.Role == role)
+        else:
+            support = doc.getObject(plane) or (doc.getObjectsByLabel(plane) or [None])[0]
+            if support is None or not (support.isDerivedFrom("PartDesign::Plane")
+                                       or support.isDerivedFrom("App::Plane")):
+                raise HandlerError("plane must be XY, XZ, YZ or a datum plane, got %r"
+                                   % plane)
+        sketch.AttachmentSupport = [(support, "")]
     sketch.MapMode = "FlatFace"
     if offset:
         sketch.AttachmentOffset = App.Placement(V(0, 0, float(offset)), App.Rotation())
@@ -1488,9 +1493,9 @@ HANDLERS = {fn.__name__: fn for fn in [
 
 
 def _extra_handlers():
-    from . import handlers_addons, handlers_assembly, handlers_inspect
+    from . import handlers_addons, handlers_assembly, handlers_construct, handlers_inspect
     return dict(handlers_addons.HANDLERS, **handlers_assembly.HANDLERS,
-                **handlers_inspect.HANDLERS)
+                **handlers_construct.HANDLERS, **handlers_inspect.HANDLERS)
 
 
 HANDLERS.update(_extra_handlers())
