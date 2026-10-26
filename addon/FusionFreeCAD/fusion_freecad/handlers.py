@@ -792,9 +792,23 @@ def _set_midplane(feat, midplane):
         feat.Midplane = True
 
 
+def _extrude_options(feat, length2, taper):
+    """A second side ``length2`` mm the other way (Fusion: Two Sides), and a taper in
+    degrees (on both sides)."""
+    if length2 is not None:
+        if feat.SideType == "Symmetric":
+            raise HandlerError("pass either midplane or length2, not both")
+        feat.SideType = "Two sides"
+        feat.Length2 = float(length2)
+    if taper:
+        feat.TaperAngle = float(taper)
+        if length2 is not None:
+            feat.TaperAngle2 = float(taper)
+
+
 @_mutating("Pad")
 def pad(doc, sketch, length=10.0, reversed=False, midplane=False,
-        up_to_face=None, label=None):
+        up_to_face=None, length2=None, taper=0.0, label=None):
     body, _, feat = _feature_from_sketch(doc, sketch, "PartDesign::Pad", label)
     if up_to_face:
         obj_name, _, sub = up_to_face.partition(":")
@@ -805,12 +819,13 @@ def pad(doc, sketch, length=10.0, reversed=False, midplane=False,
         feat.Length = float(length)
     feat.Reversed = bool(reversed)
     _set_midplane(feat, midplane)
+    _extrude_options(feat, length2, taper)
     return _finish(doc, feat, body)
 
 
 @_mutating("Pocket")
 def pocket(doc, sketch, length=10.0, through_all=False, reversed=False,
-           midplane=False, label=None):
+           midplane=False, length2=None, taper=0.0, label=None):
     body, _, feat = _feature_from_sketch(doc, sketch, "PartDesign::Pocket", label)
     if through_all:
         feat.Type = "ThroughAll"
@@ -819,6 +834,7 @@ def pocket(doc, sketch, length=10.0, through_all=False, reversed=False,
         feat.Length = float(length)
     feat.Reversed = bool(reversed)
     _set_midplane(feat, midplane)
+    _extrude_options(feat, length2, taper)
     return _finish(doc, feat, body)
 
 
@@ -1507,10 +1523,12 @@ HANDLERS = {fn.__name__: fn for fn in [
 
 def _extra_handlers():
     from . import (handlers_addons, handlers_assembly, handlers_bodies,
-                   handlers_construct, handlers_inspect, handlers_sketch)
+                   handlers_construct, handlers_features, handlers_inspect,
+                   handlers_sketch)
     return dict(handlers_addons.HANDLERS, **handlers_assembly.HANDLERS,
                 **handlers_bodies.HANDLERS, **handlers_construct.HANDLERS,
-                **handlers_inspect.HANDLERS, **handlers_sketch.HANDLERS)
+                **handlers_features.HANDLERS, **handlers_inspect.HANDLERS,
+                **handlers_sketch.HANDLERS)
 
 
 HANDLERS.update(_extra_handlers())

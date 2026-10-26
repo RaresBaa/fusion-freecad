@@ -31,6 +31,7 @@ FreeCAD uses only the standard library; everything MCP-specific lives in `mcp-se
 | `handlers_bodies.py` | RPC handlers that move, copy and colour whole bodies |
 | `handlers_construct.py` | RPC handlers for datum planes, axes and points |
 | `handlers_sketch.py` | RPC handlers for sketch tools: project, offset, corner fillets |
+| `handlers_features.py` | RPC handlers for draft and text |
 | `handlers_inspect.py` | RPC handlers that check a model: geometry check, interference, materials and mass |
 | `handlers_addons.py` | RPC handlers that drive those add-ons (fasteners, gears, sheet metal, any command) |
 | `shortcuts.py` | Fusion single-key shortcuts and restoring FreeCAD's originals |

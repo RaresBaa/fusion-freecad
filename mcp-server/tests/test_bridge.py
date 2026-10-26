@@ -914,6 +914,48 @@ def test_move_and_copy_body(freecad):
         freecad.call("appearance", name="Body", color="#ff8800")
 
 
+def test_extrude_options_draft_and_text(freecad):
+    freecad.call("new_document", name="ExtrudeOptions")
+    rect = [{"type": "rectangle", "corner": [0, 0], "width": 30, "height": 20}]
+    sk = freecad.call("create_sketch", geometry=rect)["sketch"]
+    p = freecad.call("pad", sketch=sk, length=10, length2=5)
+    assert p["shape"]["bound_box"]["min"][2] == pytest.approx(-5)
+    assert p["shape"]["volume"] == pytest.approx(30 * 20 * 15)
+    with pytest.raises(BridgeError, match="not both"):
+        freecad.call("pad", sketch=sk, midplane=True, length2=5)
+    freecad.call("undo")
+    freecad.call("new_document", name="Taper")
+    sk = freecad.call("create_sketch", geometry=rect)["sketch"]
+    t = freecad.call("pad", sketch=sk, length=10, taper=10)
+    assert "errors" not in t
+    assert t["shape"]["bound_box"]["min"][0] < -1  # wider at the top
+    assert t["shape"]["volume"] > 30 * 20 * 10
+
+    pad = _block(freecad, "DraftText")  # 40 x 20 x 10 centred, z 0..10
+    side = _face(freecad, pad, [-1, 0, 0])
+    d = freecad.call("draft", faces=[side], angle=5,
+                     neutral_plane=_face(freecad, pad, [0, 0, -1]))
+    assert "errors" not in d
+    # The left side leans in by 10 * tan(5) at the top: a wedge of 20 mm depth comes off.
+    wedge = 0.5 * 10 * 10 * math.tan(math.radians(5)) * 20
+    assert d["shape"]["volume"] == pytest.approx(8000 - wedge, rel=1e-4)
+
+    top = _face(freecad, d["feature"], [0, 0, 1])
+    raised = freecad.call("text", text="FC", on=top, depth=1, size=6)
+    assert "errors" not in raised
+    assert raised["shape"]["bound_box"]["max"][2] == pytest.approx(11)
+    grown = raised["shape"]["volume"] - d["shape"]["volume"]
+    assert 5 < grown < 6 * 6 * 2  # some letters, about 6 mm tall
+    top = _face(freecad, raised["feature"], [0, 0, 1])
+    cut = freecad.call("text", text="FC", on=_face(freecad, raised["feature"], [0, 0, -1]),
+                       depth=-0.5, size=6)
+    assert "errors" not in cut
+    assert cut["shape"]["volume"] < raised["shape"]["volume"]
+    assert cut["shape"]["bound_box"]["min"][2] == pytest.approx(0)
+    with pytest.raises(BridgeError, match="font"):
+        freecad.call("text", text="x", on=top, font="no-such-font-anywhere")
+
+
 def test_export_dxf_outline(freecad, tmp_path):
     base = _block(freecad, "Dxf", height=2)
     freecad.call("hole", sketch=_hole_sketch(freecad, base, [[10, 0]], radius=3),

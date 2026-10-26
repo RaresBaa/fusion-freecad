@@ -46,8 +46,8 @@ names can change when earlier features change, so look them up again after edits
 | `set_dimension(sketch, constraint, value \| expression, name)` | Edit a sketch dimension by index or name; name it; or drive it by an expression |
 | `delete_sketch_geometry(sketch, geometry, constraints)` | Delete sketch geometry (and its constraints) or constraints |
 | `move_sketch_geometry(sketch, index, to, point, relative)` | Drag geometry or one of its points; the solver keeps constraints |
-| `pad(sketch, length, reversed, midplane, up_to_face)` | Extrude (Join) |
-| `pocket(sketch, length, through_all, reversed, midplane)` | Extrude (Cut) |
+| `pad(sketch, length, reversed, midplane, up_to_face, length2, taper)` | Extrude (Join); `length2` extrudes the other way too, `taper` (degrees) widens it |
+| `pocket(sketch, length, through_all, reversed, midplane, length2, taper)` | Extrude (Cut); `length2` extrudes the other way too, `taper` (degrees) widens it |
 | `revolve(sketch, angle, axis, groove)` | Revolve (Join or Cut) |
 | `fillet(edges, radius, base)` / `chamfer(edges, size, base)` | Fillet / Chamfer. `edges` can be `"all"` |
 | `hole(sketch, diameter \| thread, depth \| through_all, tapped, cut)` | Hole. One per circle centre in the sketch. `thread="M6"`, `"M8x1.0"`, `"UNC 1/4"` sizes a clearance hole, or with `tapped` a tap-drill hole; `cut` = `counterbore`, `countersink`, `counterdrill` (standard sizes unless given) |
@@ -58,6 +58,8 @@ names can change when earlier features change, so look them up again after edits
 | `loft(sketches, cut, ruled, closed)` | Loft between two or more profiles |
 | `sweep(sketch, path, path_edges, cut, mode, transition)` | Sweep a profile along a sketch path or edges |
 | `press_pull(face, distance \| radius)` | Press Pull: move a flat face, e.g. `"Pad:Face6"`; positive adds, negative cuts. On a hole, boss or fillet face it resizes the feature that made it (`radius` sets it directly) |
+| `draft(faces, angle, neutral_plane, pull_direction?)` | Tilt side faces about a neutral plane |
+| `text(text, on, depth, size?, position?, font?)` | Raised (`depth` > 0) or engraved text on a face or plane; default font osifont, which ships with FreeCAD |
 | `combine(target, tools, operation)` | Combine bodies: `join`, `cut` or `intersect` (a Boolean in the target's history); `keep_tools` leaves the tools visible |
 | `move_body(name, translate?, axis?, angle?, center?)` | Move/rotate a whole body, link or part, relative to where it is |
 | `copy_body(name, linked?, translate?)` | Independent copy (features copied) or a link that follows the original |

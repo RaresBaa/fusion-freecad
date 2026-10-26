@@ -451,25 +451,35 @@ def set_expression(name: Annotated[str, Field(description="Object, e.g. 'Pad'")]
                        expression=expression, document=document)
 
 
+Length2 = Annotated[float | None, Field(
+    description="Also extrude this many mm the other way (Fusion: Two Sides)")]
+Taper = Annotated[float, Field(
+    description="Taper angle in degrees; positive widens the extrude away from the "
+                "sketch")]
+
+
 @mcp.tool()
 def pad(sketch: str, length: float = 10.0, reversed: bool = False, midplane: bool = False,
         up_to_face: Annotated[str | None, Field(
             description="Extrude up to this face instead of a length, e.g. 'Pad:Face3'")] = None,
+        length2: Length2 = None, taper: Taper = 0.0,
         label: str | None = None, document: Doc = None) -> dict[str, Any]:
     """Extrude a sketch to add material (Fusion: Extrude / Join)."""
     return client.call("pad", sketch=sketch, length=length, reversed=reversed,
-                       midplane=midplane, up_to_face=up_to_face, label=label,
-                       document=document)
+                       midplane=midplane, up_to_face=up_to_face, length2=length2,
+                       taper=taper, label=label, document=document)
 
 
 @mcp.tool()
 def pocket(sketch: str, length: float = 10.0, through_all: bool = False,
-           reversed: bool = False, midplane: bool = False, label: str | None = None,
+           reversed: bool = False, midplane: bool = False,
+           length2: Length2 = None, taper: Taper = 0.0, label: str | None = None,
            document: Doc = None) -> dict[str, Any]:
     """Extrude a sketch to cut material (Fusion: Extrude / Cut). By default cuts into the
     solid, opposite the sketch normal; use reversed if it cuts into empty space."""
     return client.call("pocket", sketch=sketch, length=length, through_all=through_all,
-                       reversed=reversed, midplane=midplane, label=label, document=document)
+                       reversed=reversed, midplane=midplane, length2=length2, taper=taper,
+                       label=label, document=document)
 
 
 @mcp.tool()
@@ -563,6 +573,44 @@ def split_body(body: str,
     """Split a body in pieces along a plane (Fusion: Split Body). Each piece becomes a
     new body you can keep modelling; the original is hidden and still drives them."""
     return client.call("split_body", body=body, tool=tool, offset=offset,
+                       document=document)
+
+
+@mcp.tool()
+def draft(faces: Annotated[list[str], Field(
+              description="Faces of one feature to tilt, e.g. ['Pad:Face1', 'Pad:Face3']")],
+          angle: Annotated[float, Field(description="Degrees")],
+          neutral_plane: Annotated[str, Field(
+              description="Plane or planar face they pivot on, e.g. 'Pad:Face5' or 'XY'")],
+          pull_direction: Annotated[str | None, Field(
+              description="Edge giving the pull direction; default the neutral plane's "
+                          "normal")] = None,
+          reversed: bool = False, label: str | None = None,
+          document: Doc = None) -> dict[str, Any]:
+    """Tilt side faces (Fusion: Draft), e.g. so a part comes out of a mould."""
+    return client.call("draft", faces=faces, angle=angle, neutral_plane=neutral_plane,
+                       pull_direction=pull_direction, reversed=reversed, label=label,
+                       document=document)
+
+
+@mcp.tool()
+def text(text: str,
+         on: Annotated[str, Field(
+             description="Planar face ('Pad:Face6') or plane ('XY', a datum plane)")] = "XY",
+         depth: Annotated[float, Field(
+             description="mm; positive raises the text, negative engraves it")] = 1.0,
+         size: Annotated[float, Field(description="Letter height, mm")] = 5.0,
+         position: Annotated[list[float] | None, Field(
+             description="[x, y] offset from the face's centre (or the plane's origin)")] = None,
+         font: Annotated[str | None, Field(
+             description="A .ttf path or a font file name like 'arial'; default osifont "
+                         "(ships with FreeCAD)")] = None,
+         body: str | None = None, label: str | None = None,
+         document: Doc = None) -> dict[str, Any]:
+    """Raised or engraved text on a face (Fusion: Text + Extrude), e.g. labels on 3D
+    prints. Stays parametric: editing the text's ShapeString updates it."""
+    return client.call("text", text=text, on=on, depth=depth, size=size,
+                       position=position, font=font, body=body, label=label,
                        document=document)
 
 

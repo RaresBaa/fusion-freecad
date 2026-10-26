@@ -83,7 +83,8 @@
       `set_material` from FreeCAD's material library
 - [x] Sketch tools: project model edges, offset a profile, fillet corners
       (constraints already go through `add_sketch_geometry` / `delete_sketch_geometry`)
-- [ ] Features: draft, two-sided and tapered extrudes, text / emboss, rib
+- [x] Features: draft, two-sided and tapered extrudes, text / emboss
+- [ ] Rib (FreeCAD has no rib feature: a thickened open profile up to the solid)
 - [x] Bodies: `move_body`, `copy_body`, `appearance` (colour; not yet tried in the GUI)
 - [ ] 2D drawings (TechDraw): views and dimensions, export to PDF / DXF
 - [ ] MCP resources (document tree, docs) and prompts
