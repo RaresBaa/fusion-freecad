@@ -1,4 +1,5 @@
-"""Interactive Press/Pull (Q): pick a flat face, type or scroll a distance, see it live.
+"""Interactive Press/Pull (Q): pick a face, then drag the arrow on it, or type or scroll
+a distance, and see it live.
 
 The whole operation is one undo transaction; Cancel aborts it, leaving no trace.
 """
@@ -7,7 +8,10 @@ import FreeCAD as App
 import FreeCADGui as Gui
 from PySide import QtCore, QtWidgets
 
-from .presspull import PressPullError, RadiusPull, start
+from .presspull import PressPullError, RadiusPull, handle_frame, start
+
+ARROW_COLOR = (0.95, 0.55, 0.16)   # the timeline marker's orange
+ARROW_ACTIVE_COLOR = (1.0, 0.75, 0.35)
 
 
 def _split_subname(obj, sub):
@@ -28,10 +32,131 @@ def _selected_face():
     return None
 
 
+def _arrow(length, color):
+    """An arrow along +X from the origin, as a Coin scene graph."""
+    from pivy import coin
+
+    root = coin.SoSeparator()
+    material = coin.SoMaterial()
+    material.diffuseColor.setValue(*color)
+    material.emissiveColor.setValue(*(c * 0.4 for c in color))
+    root.addChild(material)
+    # Cylinders and cones stand along +Y; turn them to +X.
+    turn = coin.SoRotation()
+    turn.rotation.setValue(coin.SbVec3f(0, 0, 1), -1.5707963)
+    root.addChild(turn)
+    shaft_length = length * 0.7
+    shaft_at = coin.SoTranslation()
+    shaft_at.translation.setValue(0, shaft_length / 2, 0)
+    shaft = coin.SoCylinder()
+    shaft.radius = length * 0.05
+    shaft.height = shaft_length
+    head_at = coin.SoTranslation()  # adds to shaft_at: from the shaft's middle
+    head_at.translation.setValue(0, length / 2, 0)
+    head = coin.SoCone()
+    head.bottomRadius = length * 0.14
+    head.height = length - shaft_length
+    for node in (shaft_at, shaft, head_at, head):
+        root.addChild(node)
+    return root
+
+
+def _nice_step(x):
+    """The largest of 0.1, 0.2, 0.5, 1, 2, 5... mm that is at most x."""
+    step = 0.1
+    for candidate in (0.2, 0.5, 1, 2, 5, 10, 20, 50):
+        if candidate <= x:
+            step = candidate
+    return step
+
+
+class DragHandle:
+    """Fusion's drag arrow: a Coin 1D dragger on the face, along its outward normal.
+
+    The dragger's frame has no scale, so its translation is the distance in mm.
+    ``on_drag(distance)`` gets the snapped distance, outside Coin's event handling.
+    """
+
+    def __init__(self, op, on_drag):
+        from pivy import coin
+
+        self.on_drag = on_drag
+        self.dragging = False
+        self._pending = None
+        self._syncing = False
+        point, normal = handle_frame(op.face)
+        diagonal = op.body.Shape.BoundBox.DiagonalLength
+        length = min(max(diagonal * 0.15, 3.0), 60.0)
+        self.step = _nice_step(length / 20)
+
+        frame = coin.SoTransform()
+        frame.translation.setValue(point.x, point.y, point.z)
+        frame.rotation.setValue(coin.SbRotation(coin.SbVec3f(1, 0, 0),
+                                                coin.SbVec3f(normal.x, normal.y, normal.z)))
+        self.dragger = coin.SoTranslate1Dragger()
+        self.dragger.setPart("translator", _arrow(length, ARROW_COLOR))
+        self.dragger.setPart("translatorActive", _arrow(length, ARROW_ACTIVE_COLOR))
+        self.dragger.setPart("feedback", coin.SoSeparator())
+        self.dragger.setPart("feedbackActive", coin.SoSeparator())
+        self.dragger.addStartCallback(self._started)
+        self.dragger.addValueChangedCallback(self._moved)
+        self.dragger.addFinishCallback(self._finished)
+        self.root = coin.SoSeparator()
+        self.root.addChild(frame)
+        self.root.addChild(self.dragger)
+        self.view = Gui.ActiveDocument.ActiveView
+        self.view.getSceneGraph().addChild(self.root)
+
+    def follow(self, distance):
+        """Move the arrow to a distance typed in the panel."""
+        if self.dragging:
+            return
+        self._syncing = True
+        try:
+            self.dragger.translation.setValue(distance, 0, 0)
+        finally:
+            self._syncing = False
+
+    def remove(self):
+        try:
+            self.view.getSceneGraph().removeChild(self.root)
+        except Exception:  # the view was closed
+            pass
+
+    # Coin calls these while handling a mouse event; changing the model from inside
+    # that traversal isn't safe, so the work is posted to the Qt event loop.
+
+    def _started(self, *_):
+        self.dragging = True
+
+    def _moved(self, *_):
+        if not self._syncing:
+            self._post()
+
+    def _finished(self, *_):
+        self.dragging = False
+        self._post()  # also snaps the arrow to the delivered distance
+
+    def _post(self):
+        if self._pending is None:
+            QtCore.QTimer.singleShot(0, self._deliver)
+        x = self.dragger.translation.getValue()[0]
+        self._pending = round(x / self.step) * self.step
+
+    def _deliver(self):
+        distance, self._pending = self._pending, None
+        if distance is None:
+            return
+        self.on_drag(distance)
+        if not self.dragging:
+            self.follow(distance)
+
+
 class PressPullPanel:
     def __init__(self):
         self.doc = App.ActiveDocument
         self.op = None
+        self.handle = None
         self.form = QtWidgets.QWidget()
         self.form.setWindowTitle("Press/Pull")
         layout = QtWidgets.QFormLayout(self.form)
@@ -51,7 +176,7 @@ class PressPullPanel:
         layout.addRow("Distance:", self.distance)
 
         hint = QtWidgets.QLabel("Positive pulls material out, negative pushes it in. "
-                                "Type a value or scroll over the field.")
+                                "Drag the arrow, type a value or scroll over the field.")
         hint.setWordWrap(True)
         hint.setEnabled(False)
         layout.addRow(hint)
@@ -74,6 +199,8 @@ class PressPullPanel:
             return False
         self._show_face()
         self.distance.setEnabled(True)
+        if Gui.ActiveDocument is not None:
+            self.handle = DragHandle(self.op, self.distance.setValue)
         QtCore.QTimer.singleShot(0, self._focus_distance)
         return True
 
@@ -108,10 +235,15 @@ class PressPullPanel:
             return
         self.doc.recompute()
         self._show_face()
+        if self.handle is not None:
+            self.handle.follow(value)
 
     # -- task dialog API ------------------------------------------------------
 
     def _cleanup(self):
+        if self.handle is not None:
+            self.handle.remove()
+            self.handle = None
         try:
             Gui.Selection.removeObserver(self)
         except Exception:

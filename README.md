@@ -13,7 +13,8 @@ Status: early. Working today:
 - **Timeline** at the bottom: drag the orange marker to roll back, drag features to
   reorder them, double-click to edit, right-click to suppress or delete. Each
   feature's sketch is folded into it, so long histories stay short.
-- **Press/Pull** (Q): pick a face, type a distance; positive adds, negative cuts. On a
+- **Press/Pull** (Q): pick a face, drag the arrow or type a distance; positive adds,
+  negative cuts. On a
   hole, boss or fillet it changes the radius.
 - **Fusion keys**: E extrude, F fillet, H hole, Q press/pull, S search at the mouse; in sketches R rectangle,
   D dimension, X construction, O offset. Optionally L line, C circle, P project (*Fusion* menu).
@@ -22,7 +23,7 @@ Status: early. Working today:
   gears, threads, 3D-printing helpers, live measurements and tool search, installed
   automatically and tested together. See [docs/addons.md](docs/addons.md).
 
-A 3D drag handle for Press/Pull and more are on the [roadmap](docs/roadmap.md).
+What's next is on the [roadmap](docs/roadmap.md).
 
 ## What's here
 

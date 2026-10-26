@@ -54,6 +54,22 @@ def start(obj, face_name):
                          % (face_name, kind))
 
 
+def handle_frame(face):
+    """Where the drag arrow sits on a face: a point on it and the outward normal there.
+
+    That normal is the way a positive distance moves the face, flat or not: a pad grows
+    outwards, a hole (whose normal points into the hole) shrinks, a boss grows.
+    """
+    if type(face.Surface).__name__ == "Plane":
+        point = face.CenterOfMass
+        u, v = face.Surface.parameter(point)
+    else:
+        u0, u1, v0, v1 = face.ParameterRange
+        u, v = (u0 + u1) / 2, (v0 + v1) / 2
+        point = face.valueAt(u, v)
+    return point, face.normalAt(u, v)
+
+
 class PressPull:
     """One press/pull operation whose distance can be changed until it's finished.
 
@@ -65,7 +81,7 @@ class PressPull:
         self.body, self.base, face = resolve_face(obj, face_name)
         if type(face.Surface).__name__ != "Plane":
             raise PressPullError("%s is curved; use start() for curved faces" % face_name)
-        self.face_name = face_name
+        self.face, self.face_name = face, face_name
         self.feature = None
         self.distance = 0.0
 
@@ -232,14 +248,14 @@ def _sketch_size(feat, surface):
 class RadiusPull:
     """Press/Pull on a cylindrical face: resizes the feature that made it.
 
-    Same interface as PressPull (base, body, feature, distance, set_distance).
+    Same interface as PressPull (base, body, face, feature, distance, set_distance).
     ``feature`` is the PartDesign feature that changed, or None while unchanged.
     """
 
     def __init__(self, obj, face_name):
         self.body, self.base, face = resolve_face(obj, face_name)
         surface = face.Surface
-        self.face_name = face_name
+        self.face, self.face_name = face, face_name
         origin = _origin_feature(self.body, self.base, surface)
         if origin is None:
             raise PressPullError("can't tell which feature made %s" % face_name)

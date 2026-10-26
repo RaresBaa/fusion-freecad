@@ -77,6 +77,13 @@ removed. The whole interaction is one transaction, so Cancel leaves nothing behi
 PartDesign's default Refine merges coplanar faces, so pushing a face keeps a clean
 solid.
 
+The drag arrow (`presspull_gui.DragHandle`) is a Coin `SoTranslate1Dragger` placed by
+`presspull.handle_frame`: on the face, along its outward normal, which is the way a
+positive distance moves any face (a pad grows out, a hole's normal points at its axis,
+so it shrinks). The dragger's frame has no scale, so its translation is the distance in
+mm. Coin calls back while handling the mouse event, where changing the model isn't
+safe, so the snapped distance is posted to the Qt event loop and set in the panel.
+
 Cylindrical faces (`RadiusPull`) can't be offset that way: PartDesign has no offset-face
 feature. Instead we walk the body back from the selected feature to the first one whose
 result has that exact surface (same axis and radius) while its base feature doesn't,

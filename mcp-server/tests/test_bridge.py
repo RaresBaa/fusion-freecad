@@ -316,6 +316,30 @@ result = {"seen": seen, "order": [o.Name for o in op.body.Group], "new": op.feat
     assert not out["invalid"]
 
 
+def test_press_pull_handle_frame(freecad):
+    """The drag arrow sits on the face and points where a positive distance moves it."""
+    base = _block(freecad, "PressPullHandle")
+    hole = freecad.call("pocket", sketch=_hole_sketch(freecad, base, [[10, 0]], radius=2),
+                        through_all=True)["feature"]
+    out = freecad.call("run_python", code="""
+from fusion_freecad.presspull import start, handle_frame
+def frame(feature, face):
+    op = start(doc.getObject(feature), face)
+    point, normal = handle_frame(op.face)
+    return [list(point), list(normal)]
+result = {name: frame(*name.split(":")) for name in %r}
+""" % [_face(freecad, hole, [0, 0, 1]), _face(freecad, hole, [1, 0, 0]),
+       _cylinder_face(freecad, hole, 2)])["result"]
+    (top, side, bore) = out.values()
+    # The top face has a hole in it, which pulls its centre of mass off the middle.
+    assert top[1] == pytest.approx([0, 0, 1]) and top[0][2] == pytest.approx(10)
+    assert side == [pytest.approx([20, 0, 5]), pytest.approx([1, 0, 0])]
+    # In a hole the arrow points at the axis: pulling makes the hole smaller.
+    (x, y, _), (nx, ny, nz) = bore
+    assert math.hypot(x - 10, y) == pytest.approx(2)
+    assert nz == pytest.approx(0) and nx * (x - 10) + ny * y == pytest.approx(-2)
+
+
 def _block(freecad, name, width=40, depth=20, height=10):
     """A centred width x depth x height box; returns its Pad's name."""
     freecad.call("new_document", name=name)
