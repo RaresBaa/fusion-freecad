@@ -260,6 +260,8 @@ def register():
 
     from .presspull_gui import PressPullCommand
     Gui.addCommand("FusionFreeCAD_PressPull", PressPullCommand())
+    from .bodies_gui import SplitBodyCommand
+    Gui.addCommand("FusionFreeCAD_SplitBody", SplitBodyCommand())
     from .parameters_gui import ChangeParametersCommand
     Gui.addCommand("FusionFreeCAD_ChangeParameters", ChangeParametersCommand())
     _registered = True

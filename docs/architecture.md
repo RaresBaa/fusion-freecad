@@ -22,6 +22,10 @@ FreeCAD uses only the standard library; everything MCP-specific lives in `mcp-se
 | `timeline.py` | The timeline dock widget (Qt), drawn on top of `history.py` |
 | `presspull.py` | Press/Pull core: a Pad or Pocket with a face as its profile; resizing for curved faces. No Qt |
 | `presspull_gui.py` | The Q task panel: pick a face, live distance preview, one undo step |
+| `parameters.py` | User parameters (the `Parameters` VarSet): set, rename, kinds. No Qt |
+| `parameters_gui.py` | The Change Parameters dialog |
+| `bodies.py` | Combine and Split Body. No Qt |
+| `bodies_gui.py` | The Split Body command |
 | `integrations.py` | Registry of other add-ons: their toolbar groups, loading them, compatibility patches |
 | `handlers_assembly.py` | RPC handlers for assemblies: links to parts, joints and the solver of FreeCAD's Assembly workbench |
 | `handlers_addons.py` | RPC handlers that drive those add-ons (fasteners, gears, sheet metal, any command) |
@@ -95,6 +99,29 @@ the circle (its dimension, if it has one) in a Pad's or Pocket's sketch. So the 
 stays editable. Positive distance still adds material, so the radius goes up or down
 depending on whether the face is convex (boss, outside fillet) or concave (hole).
 Sizes driven by an expression or a thread size are refused with a message.
+
+## Parameters (`parameters.py`)
+
+User parameters are properties of one `App::VarSet` named `Parameters`, so any
+expression can use `Parameters.width`. Renaming uses `renameProperty`, which rewrites
+the expressions that use it. Changing a parameter's kind (length, angle, number)
+replaces the property, and expressions that use it keep working. Names FreeCAD reads as
+units (`h`, `m`, `s`...) are refused: an expression would see the unit, not the
+parameter. The Change Parameters dialog keeps one transaction open while it's up, so
+every edit recomputes the model live and Cancel reverts them all.
+
+## Combine and Split Body (`bodies.py`)
+
+Combine is a PartDesign Boolean in the target body: fuse, cut or common with the tool
+bodies, which it hides. Split Body has no PartDesign equivalent, so it is built from
+parametric Part objects outside the bodies:
+- a `Part::Plane` attached to the splitting face or plane, four times the body's
+  diagonal in size;
+- a BOPTools Slice in Split mode of the body by that plane;
+- one CompoundFilter per piece, each the `BaseFeature` of a new body.
+
+Editing the original (hidden) body updates the pieces. If an edit changes how many
+pieces there are, or their order, the pieces' bodies can swap content.
 
 ## Other add-ons (`integrations.py`, `handlers_addons.py`)
 

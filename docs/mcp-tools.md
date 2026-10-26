@@ -48,6 +48,8 @@ names can change when earlier features change, so look them up again after edits
 | `loft(sketches, cut, ruled, closed)` | Loft between two or more profiles |
 | `sweep(sketch, path, path_edges, cut, mode, transition)` | Sweep a profile along a sketch path or edges |
 | `press_pull(face, distance \| radius)` | Press Pull: move a flat face, e.g. `"Pad:Face6"`; positive adds, negative cuts. On a hole, boss or fillet face it resizes the feature that made it (`radius` sets it directly) |
+| `combine(target, tools, operation)` | Combine bodies: `join`, `cut` or `intersect` (a Boolean in the target's history); `keep_tools` leaves the tools visible |
+| `split_body(body, tool, offset)` | Split Body along `XY`/`XZ`/`YZ`, a planar face or a datum plane; each piece becomes a new body, still driven by the original |
 | `set_property(name, property, value)` | Edit feature, e.g. change a Pad's `Length` |
 | `delete_object(name)` | Delete |
 | `recompute`, `undo(steps)`, `redo(steps)` | |

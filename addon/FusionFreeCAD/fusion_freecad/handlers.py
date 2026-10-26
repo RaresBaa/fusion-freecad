@@ -18,7 +18,7 @@ import tempfile
 
 import FreeCAD as App
 
-from . import parameters as params
+from . import bodies, parameters as params
 from .rpc import PROTOCOL_VERSION, HandlerError
 
 if App.GuiUp:
@@ -1124,6 +1124,37 @@ def press_pull(doc, face, distance=None, radius=None, label=None):
     return result
 
 
+def _body_arg(doc, name):
+    obj = _obj(doc, name)
+    body = bodies.body_of(obj)
+    if body is None:
+        raise HandlerError("%s is not a body or in one" % obj.Label)
+    return body
+
+
+@_mutating("Combine")
+def combine(doc, target, tools, operation="join", keep_tools=False, label=None):
+    if isinstance(tools, str):
+        tools = [tools]
+    target_body = _body_arg(doc, target)
+    feature = bodies.combine(target_body, [_body_arg(doc, t) for t in tools], operation,
+                             keep_tools)
+    if label:
+        feature.Label = label
+    return _finish(doc, feature, target_body)
+
+
+@_mutating("Split body")
+def split_body(doc, body, tool, offset=0.0):
+    body_obj = _body_arg(doc, body)
+    obj, sub = _reference(doc, body_obj, tool)
+    pieces = bodies.split(body_obj, (obj, sub[0]), offset)
+    doc.recompute()
+    return {"bodies": [{"body": b.Name, "label": b.Label,
+                        "shape": _shape_summary(b.Shape)} for b in pieces],
+            "original": body_obj.Name}
+
+
 @_mutating("Set property")
 def set_property(doc, name, property, value):
     obj = _obj(doc, name)
@@ -1449,7 +1480,7 @@ HANDLERS = {fn.__name__: fn for fn in [
     move_sketch_geometry, set_parameters, delete_parameter, rename_parameter,
     get_parameters, set_expression,
     pad, pocket, revolve, fillet, chamfer,
-    press_pull, hole, shell, mirror, linear_pattern, polar_pattern, loft, sweep,
+    press_pull, combine, split_body, hole, shell, mirror, linear_pattern, polar_pattern, loft, sweep,
     set_property, delete_object, get_timeline, roll_timeline, move_feature, suppress_feature,
     recompute, undo, redo,
     set_view, screenshot, export, import_file, run_python,

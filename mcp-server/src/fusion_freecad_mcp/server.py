@@ -369,6 +369,34 @@ def press_pull(face: Annotated[str, Field(
                        label=label, document=document)
 
 
+@mcp.tool()
+def combine(target: Annotated[str, Field(description="Body that keeps the result")],
+            tools: Annotated[list[str], Field(
+                description="Bodies to join with, cut from or intersect with the target")],
+            operation: Literal["join", "cut", "intersect"] = "join",
+            keep_tools: Annotated[bool, Field(
+                description="Leave the tool bodies visible")] = False,
+            label: str | None = None, document: Doc = None) -> dict[str, Any]:
+    """Combine bodies (Fusion: Combine): a Boolean feature in the target body's history,
+    so changing a tool body updates the result."""
+    return client.call("combine", target=target, tools=tools, operation=operation,
+                       keep_tools=keep_tools, label=label, document=document)
+
+
+@mcp.tool()
+def split_body(body: str,
+               tool: Annotated[str, Field(
+                   description="Splitting plane: 'XY'/'XZ'/'YZ' (the body's origin), a "
+                               "planar face like 'Pad:Face3', or a datum plane")],
+               offset: Annotated[float, Field(
+                   description="mm to move the plane along its normal")] = 0.0,
+               document: Doc = None) -> dict[str, Any]:
+    """Split a body in pieces along a plane (Fusion: Split Body). Each piece becomes a
+    new body you can keep modelling; the original is hidden and still drives them."""
+    return client.call("split_body", body=body, tool=tool, offset=offset,
+                       document=document)
+
+
 Edges = Annotated[list[str] | Literal["all"], Field(
     description="Edge names from get_topology, e.g. ['Edge1', 'Edge5'], or 'all'")]
 

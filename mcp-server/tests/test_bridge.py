@@ -688,6 +688,47 @@ result = r
     assert out["users"] == [["Box", "Length"]]
 
 
+def test_combine_and_split_body(freecad):
+    pad = _block(freecad, "Bodies")  # 40 x 20 x 10, centred
+    first = "Body"
+    second = freecad.call("create_body", label="Tool")["body"]
+    sk = freecad.call("create_sketch", body=second, geometry=[
+        {"type": "rectangle", "corner": [10, -10], "width": 20, "height": 20}])
+    freecad.call("pad", sketch=sk["sketch"], length=10)
+
+    c = freecad.call("combine", target=pad, tools=[second], operation="cut")
+    assert "errors" not in c and c["body"] == first
+    assert c["shape"]["volume"] == pytest.approx(8000 - 10 * 20 * 10)
+    with pytest.raises(BridgeError, match="itself"):
+        freecad.call("combine", target=first, tools=[first])
+    freecad.call("undo")
+
+    s = freecad.call("split_body", body=first, tool="YZ", offset=5)
+    assert "errors" not in s
+    volumes = sorted(b["shape"]["volume"] for b in s["bodies"])
+    assert volumes == pytest.approx([15 * 20 * 10, 25 * 20 * 10])
+    # The pieces follow the original body.
+    freecad.call("set_property", name=pad, property="Length", value=4)
+    volumes = sorted(freecad.call("get_object", name=b["body"])["shape"]["volume"]
+                     for b in s["bodies"])
+    assert volumes == pytest.approx([15 * 20 * 4, 25 * 20 * 4])
+    # A piece takes new features like any body.
+    piece = next(b["body"] for b in s["bodies"] if b["shape"]["bound_box"]["min"][0] < 0)
+    sk = freecad.call("create_sketch", body=piece, plane="XY", geometry=[
+        {"type": "circle", "center": [-15, 0], "radius": 2}])
+    p = freecad.call("pad", sketch=sk["sketch"], length=10, reversed=True)
+    assert "errors" not in p
+    assert p["shape"]["volume"] == pytest.approx(25 * 20 * 4 + math.pi * 4 * 10)
+
+    # Along another body's face: the tool block's side at x = 10.
+    other = next(b["body"] for b in s["bodies"] if b["body"] != piece)
+    s2 = freecad.call("split_body", body=other, tool=_face(freecad, "Pad001", [-1, 0, 0]))
+    assert sorted(b["shape"]["volume"] for b in s2["bodies"]) ==         pytest.approx([5 * 20 * 4, 10 * 20 * 4])
+
+    with pytest.raises(BridgeError, match="doesn't cut"):
+        freecad.call("split_body", body=first, tool="YZ", offset=500)
+
+
 def test_export_dxf_outline(freecad, tmp_path):
     base = _block(freecad, "Dxf", height=2)
     freecad.call("hole", sketch=_hole_sketch(freecad, base, [[10, 0]], radius=3),

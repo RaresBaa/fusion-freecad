@@ -12,7 +12,7 @@ TOOLBARS = [
                 "PartDesign_AdditivePipe", "PartDesign_SubtractiveLoft"]),
     ("Modify", ["FusionFreeCAD_PressPull", "PartDesign_Fillet", "PartDesign_Chamfer",
                 "PartDesign_Draft", "PartDesign_Thickness", "PartDesign_Boolean",
-                "FusionFreeCAD_ChangeParameters"]),
+                "FusionFreeCAD_SplitBody", "FusionFreeCAD_ChangeParameters"]),
     ("Pattern", ["PartDesign_Mirrored", "PartDesign_LinearPattern",
                  "PartDesign_PolarPattern", "PartDesign_MultiTransform"]),
     ("Construct", ["PartDesign_Body", "PartDesign_Plane", "PartDesign_Line",
