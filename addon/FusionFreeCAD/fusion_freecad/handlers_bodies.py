@@ -98,6 +98,17 @@ def appearance(doc, name, color=None, transparency=None):
     vo = getattr(obj, "ViewObject", None)
     if vo is None:
         raise HandlerError("appearance needs FreeCAD's GUI (this one is headless)")
+    if "OverrideMaterial" in vo.PropertiesList:  # a link: its own material on top
+        material = vo.ShapeMaterial
+        if color is not None:
+            material.DiffuseColor = _color(color)
+        if transparency is not None:
+            material.Transparency = int(transparency) / 100.0
+        vo.ShapeMaterial = material
+        vo.OverrideMaterial = True
+        return {"name": obj.Name,
+                "color": [_round(c) for c in vo.ShapeMaterial.DiffuseColor[:3]],
+                "transparency": round(vo.ShapeMaterial.Transparency * 100)}
     if color is not None:
         vo.ShapeColor = _color(color)
     if transparency is not None:
