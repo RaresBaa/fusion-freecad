@@ -892,6 +892,28 @@ def test_sketch_tools(freecad):
         freecad.call("fillet_sketch", sketch=sk, radius=1, corners=[[15, 10]])
 
 
+def test_move_and_copy_body(freecad):
+    pad = _block(freecad, "MoveCopy")  # 40 x 20 x 10 centred, z 0..10
+    m = freecad.call("move_body", name="Body", translate=[100, 0, 0])
+    assert m["shape"]["bound_box"]["min"] == pytest.approx([80, -10, 0])
+    # A quarter turn about Z through the body's centre at (100, 0): 20 wide, 40 deep.
+    m = freecad.call("move_body", name="Body", axis="Z", angle=90, center=[100, 0, 0])
+    assert m["shape"]["bound_box"]["min"] == pytest.approx([90, -20, 0])
+    assert m["placement"]["angle"] == pytest.approx(90)
+
+    c = freecad.call("copy_body", name="Body", translate=[0, 100, 0], label="Twin")
+    assert c["label"] == "Twin" and not c["linked"]
+    assert c["shape"]["bound_box"]["min"] == pytest.approx([90, 80, 0])
+    assert c["shape"]["volume"] == pytest.approx(8000)
+    # Independent: changing the original leaves the copy alone; a link follows it.
+    link = freecad.call("copy_body", name="Body", linked=True, translate=[0, -100, 0])
+    freecad.call("set_property", name=pad, property="Length", value=5)
+    assert freecad.call("get_object", name=c["name"])["shape"]["volume"]         == pytest.approx(8000)
+    assert freecad.call("get_object", name=link["name"])["shape"]["volume"]         == pytest.approx(4000)
+    with pytest.raises(BridgeError, match="headless"):
+        freecad.call("appearance", name="Body", color="#ff8800")
+
+
 def test_export_dxf_outline(freecad, tmp_path):
     base = _block(freecad, "Dxf", height=2)
     freecad.call("hole", sketch=_hole_sketch(freecad, base, [[10, 0]], radius=3),

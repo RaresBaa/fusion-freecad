@@ -201,6 +201,46 @@ def fillet_sketch(sketch: str, radius: float,
                        document=document)
 
 
+@mcp.tool()
+def move_body(name: Annotated[str, Field(description="Body, assembly link or part")],
+              translate: Annotated[list[float] | None, Field(
+                  description="[x, y, z] mm")] = None,
+              axis: Annotated[str | list[float] | None, Field(
+                  description="Rotation axis: 'X', 'Y', 'Z' or [x, y, z]; default Z")] = None,
+              angle: Annotated[float, Field(description="Degrees")] = 0.0,
+              center: Annotated[list[float] | None, Field(
+                  description="Point the axis goes through; default the origin")] = None,
+              document: Doc = None) -> dict[str, Any]:
+    """Move a whole body (Fusion: Move/Copy): rotate, then translate, relative to where
+    it is."""
+    return client.call("move_body", name=name, translate=translate, axis=axis,
+                       angle=angle, center=center, document=document)
+
+
+@mcp.tool()
+def copy_body(name: str,
+              linked: Annotated[bool, Field(
+                  description="A link that always shows the original's shape, instead of "
+                              "an independent copy of its features")] = False,
+              translate: Annotated[list[float] | None, Field(
+                  description="[x, y, z] mm to move the copy")] = None,
+              label: str | None = None, document: Doc = None) -> dict[str, Any]:
+    """Copy a body."""
+    return client.call("copy_body", name=name, linked=linked, translate=translate,
+                       label=label, document=document)
+
+
+@mcp.tool()
+def appearance(name: str,
+               color: Annotated[str | list[float] | None, Field(
+                   description="'#rrggbb', or [r, g, b] as 0-1 or 0-255")] = None,
+               transparency: Annotated[int | None, Field(description="0-100")] = None,
+               document: Doc = None) -> dict[str, Any]:
+    """Colour of a body or part in the 3D view (GUI only)."""
+    return client.call("appearance", name=name, color=color, transparency=transparency,
+                       document=document)
+
+
 # --- construction geometry -------------------------------------------------
 
 @mcp.tool()
