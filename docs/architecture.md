@@ -36,6 +36,7 @@ FreeCAD uses only the standard library; everything MCP-specific lives in `mcp-se
 | `handlers_addons.py` | RPC handlers that drive those add-ons (fasteners, gears, sheet metal, any command) |
 | `shortcuts.py` | Fusion single-key shortcuts and restoring FreeCAD's originals |
 | `navigation.py` | Fusion mouse navigation (Revit style) in Fusion mode |
+| `marking.py` | Fusion's radial right-click menu (marking menu) in the 3D view, in Fusion mode |
 | `tabs.py` | Toolbar tabs (SOLID, SHEET METAL, ...) that show one set of groups at a time |
 | `layout.py` | First toolbar row in every workbench (standard, SearchBar, MCP); the MCP toolbar |
 | `session.py` | "Fusion mode": keeps timeline and shortcuts alive across FreeCAD's automatic workbench switches |
@@ -188,6 +189,20 @@ FreeCAD's Revit navigation style matches. Like the shortcuts, it's set (preferen
 open views) when Fusion mode starts and the user's style comes back when it ends,
 with the original kept in `SavedNavigationStyle` for crash cleanup. If the user picks
 another style while in Fusion mode, theirs is kept.
+
+## Marking menu (`marking.py`)
+
+In Fusion mode an event filter sits on each 3D view's viewport (the `QOpenGLWidget`
+inside the viewer's `QGraphicsView`; new views are hooked on `subWindowActivated`).
+A plain right press is taken: released in place it opens a `Qt.Popup` ring, dragged
+past 30 px it shows a mouse-transparent ring and runs the command in that direction
+on release. The ring is the sketch tools while a sketch is in edit, OK/Cancel (the
+task panel's `QDialogButtonBox` buttons) in other task dialogs, and part tools
+otherwise; the top slot repeats the last command run from it. The press is left alone
+when the viewport's cursor isn't the arrow: sketcher tools, box selection and
+measuring set their own cursor and use the right button themselves. "More..." replays
+the right-click past the filter so FreeCAD opens its usual context menu. Python must
+hold the popup (`_open`), or the unparented widget is deleted as soon as it's shown.
 
 ### Threading
 

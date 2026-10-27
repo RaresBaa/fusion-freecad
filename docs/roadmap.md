@@ -72,7 +72,8 @@
       MCP tools
 - [x] Timeline groups: collapse a range of features into one named slot (right-click →
       Group selected; stored on the body); MCP tools `group_timeline`, `edit_timeline_group`
-- [ ] Marking menu: Fusion's radial right-click menu in the 3D view
+- [x] Marking menu: Fusion's radial right-click menu in the 3D view (click for the ring,
+      right-drag to mark; sketch / dialog / part rings; More... opens FreeCAD's menu)
 - [ ] Sketch: closer to Fusion's sketcher (constraint inference, dimension on create)
 
 ## 7. More MCP tools

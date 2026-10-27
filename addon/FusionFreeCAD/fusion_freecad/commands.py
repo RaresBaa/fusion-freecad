@@ -145,6 +145,25 @@ class _ToggleNavigation:
         return True
 
 
+class _ToggleMarkingMenu:
+    def GetResources(self):
+        return {"MenuText": "Marking menu on right-click",
+                "ToolTip": "Fusion's radial menu in the 3D view: right-click for a ring of "
+                           "commands, or right-drag towards one to run it. \"More...\" "
+                           "opens FreeCAD's menu. Only active in the Fusion workbench.",
+                "Checkable": prefs().GetBool("MarkingMenu", True)}
+
+    def Activated(self, checked=None):
+        from . import marking
+
+        if checked is None:
+            checked = not marking.enabled()
+        marking.set_enabled(checked)
+
+    def IsActive(self):
+        return True
+
+
 class _ToggleTabs:
     def GetResources(self):
         return {"MenuText": "Toolbar tabs",
@@ -233,6 +252,7 @@ BRIDGE_COMMANDS = ["FusionFreeCAD_StartBridge", "FusionFreeCAD_StopBridge"]
 MENU = ["FusionFreeCAD_ToggleTimeline", "FusionFreeCAD_ToggleGroupSketches",
         "FusionFreeCAD_ToggleShortcuts",
         "FusionFreeCAD_ToggleSketcherOverride", "FusionFreeCAD_ToggleNavigation",
+        "FusionFreeCAD_ToggleMarkingMenu",
         "FusionFreeCAD_ToggleTabs", "FusionFreeCAD_ShowToolbars",
         "FusionFreeCAD_SearchAtCursor",
         "Separator",
@@ -254,6 +274,7 @@ def register():
     Gui.addCommand("FusionFreeCAD_ToggleShortcuts", _ToggleShortcuts())
     Gui.addCommand("FusionFreeCAD_ToggleSketcherOverride", _ToggleSketcherOverride())
     Gui.addCommand("FusionFreeCAD_ToggleNavigation", _ToggleNavigation())
+    Gui.addCommand("FusionFreeCAD_ToggleMarkingMenu", _ToggleMarkingMenu())
     Gui.addCommand("FusionFreeCAD_ToggleTabs", _ToggleTabs())
     Gui.addCommand("FusionFreeCAD_ShowToolbars", _ShowToolbars())
     Gui.addCommand("FusionFreeCAD_SearchAtCursor", _SearchAtCursor())
