@@ -7,6 +7,9 @@
 - Rolled-back features are faded, suppressed ones struck through, failing ones red.
 - A feature's own sketch shares its slot, shown as a small badge (*Fusion → Group
   sketches in timeline* turns that off).
+- Groups: select features, right-click → Group selected. An expanded group has a
+  bracket over it; a collapsed one is a single folder slot (double-click to expand).
+  A group holding the marker is always shown expanded.
 
 The widget polls a cheap signature of the active body a few times per second while
 visible and repaints only when it changed, which keeps it in sync with every way the
@@ -28,6 +31,7 @@ MARKER_COLOR = QtGui.QColor("#f28c28")
 ERROR_COLOR = QtGui.QColor("#d9534f")
 SELECT_COLOR = QtGui.QColor(70, 140, 230, 90)
 DROP_COLOR = QtGui.QColor(70, 140, 230)
+GROUP_COLOR = QtGui.QColor("#6a9fd8")
 POLL_MS = 300
 
 
@@ -36,6 +40,8 @@ class TimelineStrip(QtWidgets.QWidget):
         super().__init__()
         self.panel = panel
         self.items = []          # slots: [[(obj, entry dict), ...]], the feature last
+        self.collapsed = {}      # slot index -> name of the collapsed group it shows
+        self.brackets = []       # (first slot, last slot, name) of expanded groups
         self.marker = -1         # slot index after which the marker sits
         self.selected = set()
         self.drag_marker = None  # marker index while dragging
@@ -47,8 +53,10 @@ class TimelineStrip(QtWidgets.QWidget):
 
     # -- data -----------------------------------------------------------------
 
-    def set_data(self, items, marker, selected):
+    def set_data(self, items, marker, selected, collapsed=None, brackets=()):
         self.items = items
+        self.collapsed = collapsed or {}
+        self.brackets = list(brackets)
         self.marker = marker
         self.selected = selected
         self.setMinimumWidth(2 * PAD + max(1, len(items)) * CELL + 8)
@@ -87,10 +95,21 @@ class TimelineStrip(QtWidgets.QWidget):
         p.setPen(QtGui.QPen(pal.color(QtGui.QPalette.Mid), 2))
         p.drawLine(PAD, rail_y, PAD + len(self.items) * CELL, rail_y)
 
+        for first, last, _name in self.brackets:
+            left = self.cell_rect(first).left() + 3
+            right = self.cell_rect(last).right() - 3
+            p.setPen(QtGui.QPen(GROUP_COLOR, 2))
+            p.drawLine(left, 2, right, 2)
+            p.drawLine(left, 2, left, 6)
+            p.drawLine(right, 2, right, 6)
+
         for i, members in enumerate(self.items):
             obj, entry = members[-1]
             r = self.cell_rect(i)
             box = r.adjusted(3, 0, -3, 0)
+            if i in self.collapsed:
+                self._paint_group(p, members, r, box)
+                continue
             if any(o.Name in self.selected for o, _ in members):
                 p.setPen(QtCore.Qt.NoPen)
                 p.setBrush(SELECT_COLOR)
@@ -132,6 +151,30 @@ class TimelineStrip(QtWidgets.QWidget):
                 p.drawLine(x, 6, x, STRIP_HEIGHT - 6)
         p.end()
 
+    def _paint_group(self, p, members, r, box):
+        """A collapsed group: a folder with the number of features in it."""
+        pal = self.palette()
+        if any(o.Name in self.selected for o, _ in members):
+            p.setPen(QtCore.Qt.NoPen)
+            p.setBrush(SELECT_COLOR)
+            p.drawRoundedRect(box, 4, 4)
+        failing = any(e["error"] for _, e in members)
+        p.setPen(QtGui.QPen(ERROR_COLOR if failing else GROUP_COLOR, 2))
+        p.setBrush(QtCore.Qt.NoBrush)
+        p.drawRoundedRect(box, 4, 4)
+        p.setOpacity(0.3 if all(e["rolled_back"] for _, e in members) else 1.0)
+        icon = self.style().standardIcon(QtWidgets.QStyle.SP_DirIcon)
+        icon.paint(p, r.x() + (CELL - ICON) // 2, r.y() + (r.height() - ICON) // 2,
+                   ICON, ICON)
+        count = sum(1 for _, e in members if e["kind"] != "sketch") or len(members)
+        font = p.font()
+        font.setPointSizeF(max(6.0, font.pointSizeF() * 0.75))
+        p.setFont(font)
+        p.setPen(pal.color(QtGui.QPalette.Text))
+        p.drawText(box.adjusted(0, 0, -3, -1), QtCore.Qt.AlignRight | QtCore.Qt.AlignBottom,
+                   str(count))
+        p.setOpacity(1.0)
+
     def _drop_changes_order(self):
         return self.drop_at not in (self.drag_item, self.drag_item - 1)
 
@@ -155,8 +198,12 @@ class TimelineStrip(QtWidgets.QWidget):
             self.setCursor(QtCore.Qt.SizeHorCursor)
             return
         i = self.index_at(x)
+        if event.button() == QtCore.Qt.LeftButton and i in self.collapsed:
+            # A collapsed group selects everything in it, and doesn't drag.
+            self.panel.select([o for o, _ in self.items[i]], event.modifiers())
+            return
         if event.button() == QtCore.Qt.LeftButton and i is not None:
-            self.panel.select(self.items[i][-1][0], event.modifiers())
+            self.panel.select([self.items[i][-1][0]], event.modifiers())
             self.press = (i, x)
 
     def mouseMoveEvent(self, event):
@@ -202,21 +249,29 @@ class TimelineStrip(QtWidgets.QWidget):
 
     def mouseDoubleClickEvent(self, event):
         i = self.index_at(_x(event))
-        if i is not None:
+        if i in self.collapsed:
+            self.panel.set_collapsed(self.collapsed[i], False)
+        elif i is not None:
             self.panel.edit(self.items[i][-1][0])
 
     def contextMenuEvent(self, event):
         i = self.index_at(event.pos().x())
         if i is not None:
             self.panel.context_menu([o for o, _ in self.items[i]], self.group_index(i),
-                                    event.globalPos())
+                                    event.globalPos(), collapsed=i in self.collapsed)
 
     def event(self, event):
         if event.type() == QtCore.QEvent.ToolTip:
             i = self.index_at(event.pos().x())
-            if i is not None:
+            if i in self.collapsed:
+                lines = ["<b>%s</b>" % self.collapsed[i], "<i>group</i>"]
+                lines += [e["label"] for _, e in self.items[i] if e["kind"] != "sketch"]
+                QtWidgets.QToolTip.showText(event.globalPos(), "<br>".join(lines), self)
+            elif i is not None:
                 obj, entry = self.items[i][-1]
                 lines = ["<b>%s</b>" % entry["label"], entry["type"].split("::")[-1]]
+                if entry["group"]:
+                    lines.append("group: %s" % entry["group"])
                 if len(self.items[i]) > 1:
                     lines.append("sketch: %s" % self.items[i][0][1]["label"])
                 if entry["rolled_back"]:
@@ -307,13 +362,14 @@ class TimelinePanel(QtWidgets.QWidget):
             self.caption.setText("No body" if doc else "")
             return
         group, entries = body.Group, history.entries(body)
-        slots = history.cells(body, grouped=_grouped())
+        marker = history.marker_index(body)
+        slots, collapsed, brackets = _layout(history.cells(body, grouped=_grouped()),
+                                             history.groups(body), marker)
         items = [[(group[i], entries[i]) for i in slot] for slot in slots]
         # The marker is on a feature, which is always the last of its slot.
-        marker = history.marker_index(body)
         marker_slot = max((s for s, slot in enumerate(slots) if slot[-1] <= marker), default=-1)
         selected = {o.Name for o in Gui.Selection.getSelection(doc.Name)}
-        self.strip.set_data(items, marker_slot, selected)
+        self.strip.set_data(items, marker_slot, selected, collapsed, brackets)
         self.caption.setText(body.Label)
 
     @staticmethod
@@ -323,8 +379,9 @@ class TimelinePanel(QtWidgets.QWidget):
         objs = tuple((o.Name, o.Label, tuple(o.State), bool(getattr(o, "Suppressed", False)))
                      for o in body.Group)
         selected = tuple(o.Name for o in Gui.Selection.getSelection(doc.Name))
+        groups = tuple(getattr(body, history.GROUPS_PROPERTY, ()))
         return (doc.Name, body.Name, body.Tip.Name if body.Tip else None, objs, selected,
-                _grouped())
+                _grouped(), groups)
 
     # -- actions --------------------------------------------------------------
 
@@ -359,10 +416,11 @@ class TimelinePanel(QtWidgets.QWidget):
     def step(self, delta):
         self._change("Roll timeline", lambda: history.step(self.body, delta))
 
-    def select(self, obj, modifiers):
+    def select(self, objs, modifiers):
         if not modifiers & QtCore.Qt.ControlModifier:
             Gui.Selection.clearSelection()
-        Gui.Selection.addSelection(obj)
+        for obj in objs:
+            Gui.Selection.addSelection(obj)
         self.refresh(force=True)
 
     def edit(self, obj):
@@ -372,9 +430,53 @@ class TimelinePanel(QtWidgets.QWidget):
         if gdoc is not None:
             gdoc.setEdit(obj, 0)
 
-    def context_menu(self, members, index, global_pos):
+    def set_collapsed(self, name, collapsed):
+        self._change("Collapse group" if collapsed else "Expand group",
+                     lambda: history.set_collapsed(self.body, name, collapsed))
+
+    def _rename_group(self, name):
+        new, ok = QtWidgets.QInputDialog.getText(self, "Rename group", "Name:", text=name)
+        if ok and new.strip() and new.strip() != name:
+            self._change("Rename group",
+                         lambda: history.rename_group(self.body, name, new.strip()))
+
+    def _new_group(self, first, last):
+        name, ok = QtWidgets.QInputDialog.getText(self, "Group features", "Name:")
+        if ok:
+            self._change("Group timeline", lambda: history.make_group(
+                self.body, first, last, name.strip() or None))
+
+    def _group_actions(self, menu, members):
+        """Collapse / rename / ungroup the group the slot is in, or group the selected
+        features together with it."""
+        names = {o.Name for o in members}
+        current = next((g for g in history.groups(self.body)
+                        if names & set(g["members"])), None)
+        if current is not None:
+            name = current["name"]
+            if current["collapsed"]:
+                menu.addAction("Expand group", lambda: self.set_collapsed(name, False))
+            else:
+                menu.addAction("Collapse group", lambda: self.set_collapsed(name, True))
+            menu.addAction("Rename group...", lambda: self._rename_group(name))
+            menu.addAction("Ungroup", lambda: self._change(
+                "Ungroup", lambda: history.ungroup(self.body, name)))
+            return
+        group = self.body.Group
+        selected = {o.Name for o in Gui.Selection.getSelection(self.doc.Name)} | names
+        at = [i for i, o in enumerate(group) if o.Name in selected]
+        if at:
+            menu.addAction("Group selected", lambda: self._new_group(min(at), max(at)))
+
+    def context_menu(self, members, index, global_pos, collapsed=False):
         obj = members[-1]
         menu = QtWidgets.QMenu(self)
+        if collapsed:
+            self._group_actions(menu, members)
+            menu.addSeparator()
+            menu.addAction("Roll back to here", lambda: self.roll_to_index(index))
+            menu.exec(global_pos)
+            return
         menu.addAction("Edit feature", lambda: self.edit(obj))
         if len(members) > 1:
             menu.addAction("Edit sketch", lambda: self.edit(members[0]))
@@ -385,6 +487,8 @@ class TimelinePanel(QtWidgets.QWidget):
                            lambda: self._change("Suppress feature",
                                                 lambda: history.set_suppressed(obj, not suppressed)))
         menu.addSeparator()
+        self._group_actions(menu, members)
+        menu.addSeparator()
         menu.addAction("Delete", lambda: self._delete(obj))
         menu.exec(global_pos)
 
@@ -394,6 +498,31 @@ class TimelinePanel(QtWidgets.QWidget):
         Gui.Selection.addSelection(obj)
         Gui.runCommand("Std_Delete", 0)
         self.refresh(force=True)
+
+
+def _layout(cells, groups, marker):
+    """Merge each collapsed group's slots into one, unless the marker is inside it.
+    Returns (slots, {slot: collapsed group's name}, [(first slot, last slot, name)])."""
+    slots, collapsed, brackets = [], {}, []
+    by_start = {g["start"]: g for g in groups}
+    i = 0
+    while i < len(cells):
+        g = by_start.get(cells[i][0])
+        if g is None:
+            slots.append(cells[i])
+            i += 1
+            continue
+        j = i
+        while j + 1 < len(cells) and cells[j + 1][0] <= g["end"]:
+            j += 1
+        if g["collapsed"] and not g["start"] <= marker < g["end"]:
+            collapsed[len(slots)] = g["name"]
+            slots.append([k for cell in cells[i:j + 1] for k in cell])
+        else:
+            brackets.append((len(slots), len(slots) + j - i, g["name"]))
+            slots.extend(cells[i:j + 1])
+        i = j + 1
+    return slots, collapsed, brackets
 
 
 def _grouped():

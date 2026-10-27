@@ -1232,7 +1232,8 @@ def get_timeline(body=None, document=None):
     doc = _doc(document)
     b = _timeline_body(doc, body)
     return {"body": b.Name, "tip": b.Tip.Name if b.Tip else None,
-            "marker_index": history.marker_index(b), "entries": history.entries(b)}
+            "marker_index": history.marker_index(b), "entries": history.entries(b),
+            "groups": history.groups(b)}
 
 
 @_mutating("Roll timeline")
@@ -1286,6 +1287,43 @@ def move_feature(doc, name, after=None, before=None, with_sketch=True):
     return {"moved": moved, "body": b.Name, "order": [o.Name for o in b.Group],
             "tip": b.Tip.Name if b.Tip else None,
             "shape": _shape_summary(b.Shape)}
+
+
+@_mutating("Group timeline")
+def group_timeline(doc, first, last, name=None, collapsed=False):
+    """Name the run of the timeline from ``first`` to ``last`` (Fusion: Create Group),
+    optionally collapsed into one slot."""
+    from . import history
+
+    a, b_ = _obj(doc, first), _obj(doc, last)
+    b = history.body_of(a)
+    if b is None or history.body_of(b_) is not b:
+        raise HandlerError("%s and %s must be in the same PartDesign body" % (first, last))
+    try:
+        g = history.make_group(b, b.Group.index(a), b.Group.index(b_), name,
+                               bool(collapsed))
+    except ValueError as e:
+        raise HandlerError(str(e))
+    return {"body": b.Name, "group": g, "groups": history.groups(b)}
+
+
+@_mutating("Edit timeline group")
+def edit_timeline_group(doc, name, new_name=None, collapsed=None, ungroup=False,
+                        body=None):
+    from . import history
+
+    b = _timeline_body(doc, body)
+    try:
+        if ungroup:
+            history.ungroup(b, name)
+        else:
+            if collapsed is not None:
+                history.set_collapsed(b, name, collapsed)
+            if new_name:
+                history.rename_group(b, name, new_name)
+    except ValueError as e:
+        raise HandlerError(str(e))
+    return {"body": b.Name, "groups": history.groups(b)}
 
 
 @_mutating("Suppress feature")
@@ -1520,6 +1558,7 @@ HANDLERS = {fn.__name__: fn for fn in [
     pad, pocket, revolve, fillet, chamfer,
     press_pull, combine, split_body, hole, shell, mirror, linear_pattern, polar_pattern, loft, sweep,
     set_property, delete_object, get_timeline, roll_timeline, move_feature, suppress_feature,
+    group_timeline, edit_timeline_group,
     recompute, undo, redo,
     set_view, screenshot, export, import_file, run_python,
 ]}

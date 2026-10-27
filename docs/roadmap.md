@@ -70,7 +70,8 @@
       expression), editable, on top of the `Parameters` VarSet the MCP tools use
 - [x] Combine (join / cut / intersect bodies) and Split Body on the Modify toolbar;
       MCP tools
-- [ ] Timeline groups: collapse a range of features into one named slot
+- [x] Timeline groups: collapse a range of features into one named slot (right-click →
+      Group selected; stored on the body); MCP tools `group_timeline`, `edit_timeline_group`
 - [ ] Marking menu: Fusion's radial right-click menu in the 3D view
 - [ ] Sketch: closer to Fusion's sketcher (constraint inference, dimension on create)
 

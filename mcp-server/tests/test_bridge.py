@@ -180,6 +180,46 @@ def test_move_feature(freecad):
     assert freecad.call("move_feature", name=boss, after=boss)["moved"] is False
 
 
+def test_timeline_groups(freecad, tmp_path):
+    base = _block(freecad, "Groups", height=5)
+    holes = []
+    for x in (-12, 0, 12):
+        sk = _hole_sketch(freecad, base, [[x, 0]])
+        holes.append(freecad.call("pocket", sketch=sk, through_all=True)["feature"])
+    g = freecad.call("group_timeline", first=holes[0], last=holes[1], name="Holes")
+    order = [e["name"] for e in freecad.call("get_timeline")["entries"]]
+    # Widened to whole slots: the first hole's sketch comes along.
+    assert g["group"]["members"] == order[order.index(holes[0]) - 1:order.index(holes[1]) + 1]
+    assert g["group"]["collapsed"] is False
+    with pytest.raises(BridgeError, match="overlaps"):
+        freecad.call("group_timeline", first=holes[1], last=holes[2])
+    with pytest.raises(BridgeError, match="already"):
+        freecad.call("group_timeline", first=holes[2], last=holes[2], name="Holes")
+
+    # Moving a feature into the run makes it a member; moving one out drops it.
+    freecad.call("move_feature", name=holes[2], before=holes[1])
+    t = freecad.call("get_timeline")
+    assert {e["name"]: e["group"] for e in t["entries"]}[holes[2]] == "Holes"
+    freecad.call("move_feature", name=holes[0], after="end")
+    t = freecad.call("get_timeline")
+    groups = {e["name"]: e["group"] for e in t["entries"]}
+    assert groups[holes[0]] is None and groups[holes[1]] == "Holes"
+
+    e = freecad.call("edit_timeline_group", name="Holes", new_name="Bores", collapsed=True)
+    assert [(x["name"], x["collapsed"]) for x in e["groups"]] == [("Bores", True)]
+    freecad.call("undo")
+    assert freecad.call("get_timeline")["groups"][0]["name"] == "Holes"
+
+    # Deleting a member just shrinks the group; groups survive save and reopen.
+    freecad.call("delete_object", name=holes[1])
+    path = tmp_path / "groups.FCStd"
+    freecad.call("save_document", path=str(path))
+    freecad.call("close_document", document="Groups")
+    freecad.call("open_document", path=str(path))
+    (g,) = freecad.call("get_timeline")["groups"]
+    assert holes[2] in g["members"] and holes[1] not in g["members"]
+    assert freecad.call("edit_timeline_group", name="Holes", ungroup=True)["groups"] == []
+
 def test_suppress_feature(freecad):
     pad_name, pocket_name, _ = _plate_with_hole(freecad, "Suppress")
     freecad.call("suppress_feature", name=pocket_name)

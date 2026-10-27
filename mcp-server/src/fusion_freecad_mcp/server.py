@@ -797,8 +797,8 @@ Body = Annotated[str | None, Field(
 @mcp.tool()
 def get_timeline(body: Body = None, document: Doc = None) -> dict[str, Any]:
     """The body's feature history in order, Fusion-timeline style: each entry's kind
-    (sketch/feature/datum), whether it is rolled back, suppressed or failing, and where
-    the rollback marker is (right after the tip feature)."""
+    (sketch/feature/datum), whether it is rolled back, suppressed or failing, which
+    group it is in, and where the rollback marker is (right after the tip feature)."""
     return client.call("get_timeline", body=body, document=document)
 
 
@@ -832,6 +832,33 @@ def move_feature(name: Annotated[str, Field(description="Feature (or sketch) to 
     on). Returns the new order and the body's shape."""
     return client.call("move_feature", name=name, after=after, before=before,
                        with_sketch=with_sketch, document=document)
+
+
+@mcp.tool()
+def group_timeline(first: Annotated[str, Field(description="First feature of the group")],
+                   last: Annotated[str, Field(description="Last feature of the group")],
+                   name: Annotated[str | None, Field(
+                       description="Group name; default Group1, Group2...")] = None,
+                   collapsed: Annotated[bool, Field(
+                       description="Show it as one slot in the timeline")] = False,
+                   document: Doc = None) -> dict[str, Any]:
+    """Group a run of the timeline under a name (Fusion: timeline group), e.g.
+    'Mounting holes'. Features' own sketches come along; groups can't overlap.
+    Features later inserted or moved inside the run join the group."""
+    return client.call("group_timeline", first=first, last=last, name=name,
+                       collapsed=collapsed, document=document)
+
+
+@mcp.tool()
+def edit_timeline_group(name: str,
+                        new_name: str | None = None,
+                        collapsed: bool | None = None,
+                        ungroup: Annotated[bool, Field(
+                            description="Remove the group (the features stay)")] = False,
+                        body: Body = None, document: Doc = None) -> dict[str, Any]:
+    """Rename, collapse/expand or remove a timeline group."""
+    return client.call("edit_timeline_group", name=name, new_name=new_name,
+                       collapsed=collapsed, ungroup=ungroup, body=body, document=document)
 
 
 @mcp.tool()

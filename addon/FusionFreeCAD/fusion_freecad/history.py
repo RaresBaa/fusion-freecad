@@ -8,10 +8,19 @@ rolling to a sketch or datum puts the Tip on the nearest solid feature before it
 A feature's own profile sketch, right before it, can share its slot (``cells``), which
 keeps long timelines short.
 
+Groups (Fusion: timeline groups) name a run of the timeline and can be collapsed into
+one slot. They are stored on the body (``TimelineGroups``, one JSON object per group
+listing its members) and cover everything from their first to their last member, so a
+feature inserted inside a group joins it and a deleted member just drops out.
+
 No Qt here, so it works headless and backs both the timeline widget and the RPC tools.
 """
 
+import json
+
 import FreeCAD as App
+
+GROUPS_PROPERTY = "TimelineGroups"
 
 
 def is_feature(obj):
@@ -90,6 +99,10 @@ def entries(body):
     for cell in cells(body):
         for i in cell[:-1]:
             owners[i] = group[cell[-1]].Name
+    in_group = {}
+    for g in groups(body):
+        for i in range(g["start"], g["end"] + 1):
+            in_group[i] = g["name"]
     result = []
     for i, obj in enumerate(group):
         result.append({
@@ -103,6 +116,7 @@ def entries(body):
             "suppressed": bool(getattr(obj, "Suppressed", False)),
             "error": "Invalid" in obj.State or "Error" in obj.State,
             "owner": owners.get(i),  # the feature whose sketch this is, if grouped
+            "group": in_group.get(i),
         })
     return result
 
@@ -181,6 +195,7 @@ def move(body, obj, boundary, with_sketch=True):
 
     tip = body.Tip
     at_end = not any(is_feature(o) for o in group[marker_index(body) + 1:])
+    _regroup(body, moving, order)
     for m in moving:
         body.removeObject(m)
     previous = anchor
@@ -229,3 +244,139 @@ def _set_tip(body, tip):
             old.Visibility = False
         if tip is not None:
             tip.Visibility = True
+
+
+# -- groups --------------------------------------------------------------------
+
+def _stored(body):
+    if GROUPS_PROPERTY not in body.PropertiesList:
+        return []
+    result = []
+    for text in getattr(body, GROUPS_PROPERTY):
+        try:
+            g = json.loads(text)
+        except ValueError:
+            continue
+        if isinstance(g, dict) and g.get("name") and g.get("members"):
+            result.append(g)
+    return result
+
+
+def _store(body, stored):
+    if GROUPS_PROPERTY not in body.PropertiesList:
+        body.addProperty("App::PropertyStringList", GROUPS_PROPERTY, "Timeline",
+                         "Named, collapsible runs of the timeline")
+        body.setEditorMode(GROUPS_PROPERTY, 2)  # hidden: edited from the timeline
+    setattr(body, GROUPS_PROPERTY, [json.dumps(g, sort_keys=True) for g in stored])
+
+
+def _spans(body, stored, order=None):
+    """(group, start, end) for each stored group with members left in ``order``."""
+    order = body.Group if order is None else order
+    position = {o.Name: i for i, o in enumerate(order)}
+    result = []
+    for g in stored:
+        at = [position[n] for n in g["members"] if n in position]
+        if at:
+            result.append((g, min(at), max(at)))
+    return result
+
+
+def groups(body):
+    """The body's timeline groups in order: name, start/end (body.Group indices,
+    inclusive), members (names) and collapsed."""
+    group = body.Group
+    result = [{"name": g["name"], "start": start, "end": end,
+               "members": [o.Name for o in group[start:end + 1]],
+               "collapsed": bool(g.get("collapsed"))}
+              for g, start, end in _spans(body, _stored(body))]
+    return sorted(result, key=lambda g: g["start"])
+
+
+def find_group(body, name):
+    for g in groups(body):
+        if g["name"] == name:
+            return g
+    raise ValueError("body %s has no timeline group %r" % (body.Label, name))
+
+
+def make_group(body, first, last, name=None, collapsed=False):
+    """Group group[first..last] (indices), widened to whole slots so a feature keeps
+    its own sketch. Groups can't overlap. Returns the new group."""
+    group = body.Group
+    first, last = sorted((first, last))
+    if first < 0 or last >= len(group):
+        raise ValueError("group range %d..%d is outside the timeline" % (first, last))
+    for cell in cells(body):
+        if cell[0] <= first <= cell[-1]:
+            first = cell[0]
+        if cell[0] <= last <= cell[-1]:
+            last = cell[-1]
+    for g in groups(body):
+        if g["start"] <= last and first <= g["end"]:
+            raise ValueError("that range overlaps the group %r" % g["name"])
+    names = {g["name"] for g in groups(body)}
+    if not name:
+        n = 1
+        while "Group%d" % n in names:
+            n += 1
+        name = "Group%d" % n
+    elif name in names:
+        raise ValueError("there already is a group named %r" % name)
+    stored = [g for g, _, _ in _spans(body, _stored(body))]
+    stored.append({"name": name, "members": [o.Name for o in group[first:last + 1]],
+                   "collapsed": bool(collapsed)})
+    _store(body, _normalised(body, stored))
+    return find_group(body, name)
+
+
+def _normalised(body, stored, order=None):
+    """Members rewritten to each group's whole current run."""
+    order = body.Group if order is None else order
+    return [dict(g, members=[o.Name for o in order[start:end + 1]])
+            for g, start, end in _spans(body, stored, order)]
+
+
+def _edit_group(body, name, change):
+    stored = _stored(body)
+    for g in stored:
+        if g["name"] == name:
+            change(g, stored)
+            _store(body, _normalised(body, [x for x in stored if x.get("members")]))
+            return
+    raise ValueError("body %s has no timeline group %r" % (body.Label, name))
+
+
+def ungroup(body, name):
+    _edit_group(body, name, lambda g, stored: g.update(members=[]))
+
+
+def rename_group(body, name, new_name):
+    if not new_name:
+        raise ValueError("a group needs a name")
+    if new_name != name and any(g["name"] == new_name for g in _stored(body)):
+        raise ValueError("there already is a group named %r" % new_name)
+    _edit_group(body, name, lambda g, stored: g.update(name=new_name))
+
+
+def set_collapsed(body, name, collapsed):
+    _edit_group(body, name, lambda g, stored: g.update(collapsed=bool(collapsed)))
+
+
+def _regroup(body, moving, order):
+    """After a move to ``order``: the moved objects belong to the group they landed
+    inside (between two of its members), and to no other."""
+    stored = _stored(body)
+    if not stored:
+        return
+    names = {m.Name for m in moving}
+    old = _spans(body, stored)
+    for g in stored:
+        g["members"] = [n for n in g["members"] if n not in names]
+    position = {o.Name: i for i, o in enumerate(order)}
+    at = [position[n] for n in names]
+    for g, start, end in old:
+        rest = [position[n] for n in g["members"] if n in position]
+        if rest and min(rest) < min(at) and max(at) < max(rest):
+            g["members"] += sorted(names, key=position.get)
+    _store(body, _normalised(body, [g for g in stored if g["members"]], order))

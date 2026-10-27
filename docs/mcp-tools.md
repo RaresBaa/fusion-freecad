@@ -131,9 +131,11 @@ features are inserted at the marker.
 
 | Tool | Does |
 |---|---|
-| `get_timeline(body?)` | Entries in order: kind (sketch/feature/datum), rolled back, suppressed, failed; `owner` is the feature a sketch is grouped with |
+| `get_timeline(body?)` | Entries in order: kind (sketch/feature/datum), rolled back, suppressed, failed; `owner` is the feature a sketch is grouped with, `group` the timeline group; plus the `groups` |
 | `roll_timeline(to \| steps)` | `to`: feature name, `"start"` or `"end"`; `steps`: move by N solid features (negative = back) |
 | `move_feature(name, after \| before, with_sketch)` | Reorder: put a feature (and its own sketch) after/before another, or at `"start"` / `"end"`. Refused if it would come before what it's built on |
+| `group_timeline(first, last, name?, collapsed?)` | Name a run of features (with their sketches) as a timeline group; groups can't overlap, and features inserted or moved inside the run join it |
+| `edit_timeline_group(name, new_name?, collapsed?, ungroup?)` | Rename, collapse/expand or remove a group |
 | `suppress_feature(name, suppressed)` | Disable a feature without deleting it |
 
 Typical use: roll back before a fillet, add a hole, then `roll_timeline(to="end")`.
