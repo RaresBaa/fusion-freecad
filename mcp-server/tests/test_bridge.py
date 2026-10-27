@@ -1007,6 +1007,50 @@ def test_rib(freecad, tmp_path):
     with pytest.raises(BridgeError, match="mode"):
         freecad.call("rib", sketch=walls, thickness=2, mode="sideways")
 
+def test_drawing(freecad, tmp_path):
+    pad = _block(freecad, "Drawing")  # 40 x 20 x 10, centred on the origin
+    freecad.call("hole", sketch=_hole_sketch(freecad, pad, [[0, 0]], radius=3),
+                 diameter=6, through_all=True)
+    d = freecad.call("create_drawing", objects=["Body"], views=["Top", "iso"])
+    assert set(d["views"]) == {"Front", "Top", "FrontTopRight"}
+    assert 0 < d["scale"] <= 10
+    with pytest.raises(BridgeError, match="unknown view"):
+        freecad.call("create_drawing", objects=["Body"], views=["Sideways"])
+    with pytest.raises(BridgeError, match="template"):
+        freecad.call("create_drawing", objects=["Body"], template="no-such-sheet")
+
+    top = d["views"]["Top"]
+    topo = freecad.call("get_topology", name=top)
+    assert topo["scale"] == d["scale"]
+    circle = next(e for e in topo["edges"] if e.get("radius"))
+    assert circle["radius"] == pytest.approx(3)
+    long_edge = next(e for e in topo["edges"]
+                     if "start" in e and e["length"] == pytest.approx(40))
+    assert long_edge["name"].startswith("Edge")
+
+    dia = freecad.call("drawing_dimension", view=top, type="diameter",
+                       references=[circle["name"]])
+    assert dia["value"] == pytest.approx(6)
+    length = freecad.call("drawing_dimension", view=top, type="distance",
+                          references=[long_edge["name"]])
+    assert length["value"] == pytest.approx(40)
+    ends = [v["name"] for v in topo["vertices"]
+            if v["point"] in (long_edge["start"], long_edge["end"])]
+    assert len(ends) == 2
+    apart = freecad.call("drawing_dimension", view=top, type="distance_x", references=ends)
+    assert apart["value"] == pytest.approx(40)
+    height = freecad.call("drawing_dimension", view=d["views"]["Front"], type="extent_y")
+    assert height["value"] == pytest.approx(10)
+    with pytest.raises(BridgeError, match="can't make"):
+        freecad.call("drawing_dimension", view=top, type="radius",
+                     references=[long_edge["name"]])
+
+    out = tmp_path / "drawing.dxf"
+    e = freecad.call("export_drawing", page=d["page"], path=str(out))
+    assert e["bytes"] > 1000
+    with pytest.raises(BridgeError, match="GUI"):
+        freecad.call("export_drawing", page=d["page"], path=str(tmp_path / "d.pdf"))
+
 def test_mcp_resources_read_the_model(freecad, monkeypatch):
     import asyncio
     import json

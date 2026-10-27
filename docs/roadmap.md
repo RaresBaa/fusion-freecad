@@ -87,7 +87,9 @@
 - [x] Rib (FreeCAD has no rib feature: a thickened open profile up to the solid, as a
       Python PartDesign feature); MCP tool `rib`
 - [x] Bodies: `move_body`, `copy_body`, `appearance` (colour, also of linked copies)
-- [ ] 2D drawings (TechDraw): views and dimensions, export to PDF / DXF
+- [x] 2D drawings (TechDraw): views and dimensions, export to PDF / DXF; MCP tools
+      `create_drawing`, `drawing_dimension`, `export_drawing`
+- [ ] Drawings in the GUI: check PDF export and where new dimensions land on the sheet
 - [x] MCP resources (documents, objects, timeline, parameters) and prompts (model a
       part, prepare for printing, review the model)
 

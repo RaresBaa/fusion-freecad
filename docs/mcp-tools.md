@@ -20,7 +20,7 @@ tool and defaults to the active document. Objects can be named by internal name
 |---|---|
 | `list_objects` | Every object: name, label, type, owning body, validity |
 | `get_object(name)` | Properties and shape summary; for sketches also geometry and constraints |
-| `get_topology(name)` | Faces (type, area, centre, normal) and edges (type, length, endpoints/radius) |
+| `get_topology(name)` | Faces (type, area, centre, normal) and edges (type, length, endpoints/radius); on a drawing view, its 2D edges and vertices |
 | `measure(a, b?)` | One element (`"Pad:Edge3"`, `"Pad:Face6"`, `"Pad"`): length, area, radius, volume. Two: distance, closest points, angle, and `plane_distance` for parallel faces |
 | `datum_plane(on, offset?, angle?, about?)` | Construction plane: offset from a plane or face, tilted about an edge in it, or through three points (`on=[...]`); sketch on it with `create_sketch(plane=<name>)` |
 | `datum_axis(through)` | Construction axis: a straight edge, two points, two planes (intersection), or a circular edge / cylindrical face (its axis) |
@@ -168,6 +168,14 @@ These drive the add-ons in [addons.md](addons.md) and say so if one isn't instal
 | `sheet_metal_unfold(face \| base)` | Flat pattern (export it with `export`, e.g. to `.dxf`) |
 | `list_commands(filter)` | Find any GUI command, e.g. `"teardrop"` |
 | `run_command(command, selection, accept_dialog)` | Run any command as if clicked, after selecting `selection`; returns what it created |
+
+## Drawings (TechDraw)
+
+| Tool | Does |
+|---|---|
+| `create_drawing(objects, views?, template?, scale?, projection?)` | A sheet with a projection group (default Front, Top, Right, Isometric), scaled to fit unless `scale`; `projection` `first` (ISO, A4 template) or `third` (ANSI B). Returns the page and view names |
+| `drawing_dimension(view, type, references?)` | `distance`, `distance_x`, `distance_y`, `radius`, `diameter`, `angle` on the view's `Edge0` / `Vertex0` names (from `get_topology` on the view, numbered from 0), or `extent_x` / `extent_y` for overall sizes. Returns the value |
+| `export_drawing(page, path)` | `.dxf` (headless too), `.pdf`, `.svg` (GUI only) |
 
 ## View (GUI only)
 

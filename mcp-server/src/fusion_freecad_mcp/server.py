@@ -107,7 +107,8 @@ def get_object(name: str, document: Doc = None) -> dict[str, Any]:
 def get_topology(name: str, document: Doc = None,
                  max_items: int = 300) -> dict[str, Any]:
     """Faces and edges of an object's shape with type, size, centre, and normal (planar
-    faces). Use it to choose edges for fillet/chamfer or a face to sketch on."""
+    faces). Use it to choose edges for fillet/chamfer or a face to sketch on. On a
+    drawing view: its 2D edges and vertices (Edge0, Vertex0...) to dimension."""
     return client.call("get_topology", name=name, document=document, max_items=max_items)
 
 
@@ -1064,6 +1065,58 @@ def export(path: Annotated[str, Field(
            document: Doc = None) -> dict[str, Any]:
     """Export geometry to a file."""
     return client.call("export", path=path, objects=objects, document=document)
+
+
+@mcp.tool()
+def create_drawing(objects: Annotated[list[str], Field(
+                       description="Bodies or parts to draw, e.g. ['Body']")],
+                   views: Annotated[list[str] | None, Field(
+                       description="Front, Rear, Top, Bottom, Left, Right, Isometric (= "
+                                   "FrontTopRight) or another corner like FrontTopLeft; "
+                                   "default Front, Top, Right, Isometric. Front is "
+                                   "always included")] = None,
+                   template: Annotated[str | None, Field(
+                       description="Sheet: a FreeCAD TechDraw template name like "
+                                   "'A3_Landscape_TD' or 'ANSIB_Landscape', or an .svg "
+                                   "path; default A4 (first angle) / ANSI B (third)")] = None,
+                   scale: Annotated[float | None, Field(
+                       description="e.g. 0.5 for 1:2; default fits the sheet")] = None,
+                   projection: Annotated[Literal["first", "third"], Field(
+                       description="'first' angle (ISO, Europe) or 'third' (ANSI, US)")]
+                       = "first",
+                   label: str | None = None, document: Doc = None) -> dict[str, Any]:
+    """2D drawing (Fusion: Drawing from Design; FreeCAD TechDraw): a sheet with
+    standard views that follow the model. Returns the page and each view's name; then
+    get_topology on a view, drawing_dimension, export_drawing."""
+    return client.call("create_drawing", objects=objects, views=views, template=template,
+                       scale=scale, projection=projection, label=label, document=document)
+
+
+@mcp.tool()
+def drawing_dimension(view: Annotated[str, Field(
+                          description="A view from create_drawing, e.g. 'ViewsItem'")],
+                      type: Annotated[Literal["distance", "distance_x", "distance_y",
+                                              "radius", "diameter", "angle", "extent_x",
+                                              "extent_y"], Field(
+                          description="extent_x / extent_y: overall width / height of the "
+                                      "view (or of the referenced edges)")],
+                      references: Annotated[list[str] | None, Field(
+                          description="The view's elements from get_topology: one edge "
+                                      "(length, radius, diameter), two vertices "
+                                      "(distance), two edges (angle)")] = None,
+                      label: str | None = None, document: Doc = None) -> dict[str, Any]:
+    """Add a dimension to a drawing view; returns its measured value in mm/degrees."""
+    return client.call("drawing_dimension", view=view, type=type, references=references,
+                       label=label, document=document)
+
+
+@mcp.tool()
+def export_drawing(page: Annotated[str, Field(description="Page from create_drawing")],
+                   path: Annotated[str, Field(
+                       description="Absolute path: .pdf, .svg (need the GUI) or .dxf")],
+                   document: Doc = None) -> dict[str, Any]:
+    """Export a drawing sheet to PDF, SVG or DXF."""
+    return client.call("export_drawing", page=page, path=path, document=document)
 
 
 @mcp.tool()

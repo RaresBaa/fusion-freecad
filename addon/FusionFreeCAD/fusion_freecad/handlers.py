@@ -349,9 +349,13 @@ def _sketch_info(sketch):
 
 
 def get_topology(name, document=None, max_items=300):
-    """Faces and edges of an object's shape, so callers can pick e.g. edges to fillet."""
+    """Faces and edges of an object's shape, so callers can pick e.g. edges to fillet;
+    for a drawing view, its 2D edges and vertices."""
     doc = _doc(document)
     obj = _obj(doc, name)
+    if obj.isDerivedFrom("TechDraw::DrawViewPart"):
+        from .handlers_drawing import view_topology
+        return view_topology(obj, max_items)
     shape = getattr(obj, "Shape", None)
     if shape is None or shape.isNull():
         raise HandlerError("%s has no shape" % obj.Name)
@@ -1523,10 +1527,11 @@ HANDLERS = {fn.__name__: fn for fn in [
 
 def _extra_handlers():
     from . import (handlers_addons, handlers_assembly, handlers_bodies,
-                   handlers_construct, handlers_features, handlers_inspect,
-                   handlers_sketch)
+                   handlers_construct, handlers_drawing, handlers_features,
+                   handlers_inspect, handlers_sketch)
     return dict(handlers_addons.HANDLERS, **handlers_assembly.HANDLERS,
                 **handlers_bodies.HANDLERS, **handlers_construct.HANDLERS,
+                **handlers_drawing.HANDLERS,
                 **handlers_features.HANDLERS, **handlers_inspect.HANDLERS,
                 **handlers_sketch.HANDLERS)
 
