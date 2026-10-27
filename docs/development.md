@@ -104,3 +104,10 @@ and the MCP server copy.
 - GUI checks: `Gui.getMainWindow().grab()` shows widgets but not the 3D view (OpenGL);
   use the `screenshot` handler for the model. `PySide6.QtTest.QTest` can simulate key
   presses and mouse drags through `run_python`.
+- TechDraw in the GUI computes view edges (hidden-line removal) in a thread and hands
+  them over through the event loop: right after a recompute `getVisibleEdges()` still
+  returns the old ones, and a projection group's spacing follows the view sizes.
+  `handlers_drawing._settle()` pumps events until they arrive. Headless it's synchronous.
+- TechDraw's automatic scale never goes above 1:1; `create_drawing` picks its own.
+- Dimension `X`/`Y` are relative to the view, in sheet mm with Y up, the same frame as
+  `getVisibleEdges()`; TechDraw leaves new ones at the view's centre.

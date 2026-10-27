@@ -89,7 +89,8 @@
 - [x] Bodies: `move_body`, `copy_body`, `appearance` (colour, also of linked copies)
 - [x] 2D drawings (TechDraw): views and dimensions, export to PDF / DXF; MCP tools
       `create_drawing`, `drawing_dimension`, `export_drawing`
-- [ ] Drawings in the GUI: check PDF export and where new dimensions land on the sheet
+- [x] Drawings in the GUI: PDF / SVG export checked; views fill the sheet above the
+      title block, new dimensions go outside the view on a side with no neighbour
 - [x] MCP resources (documents, objects, timeline, parameters) and prompts (model a
       part, prepare for printing, review the model)
 
