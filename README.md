@@ -4,6 +4,9 @@ A FreeCAD addon that brings a Fusion 360-style workflow to FreeCAD on Linux and
 Windows, plus an MCP server so AI agents such as Claude Code can model parts in a
 live FreeCAD session.
 
+An independent project, not affiliated with or endorsed by Autodesk. Fusion 360 is a
+trademark of Autodesk, Inc.; it's named here only to describe the workflow.
+
 Status: early. Working today:
 
 - **MCP bridge**: agents can sketch, extrude, cut, revolve, loft, sweep, drill holes,
@@ -85,3 +88,8 @@ time it starts. The token is stored in `~/.fusion-freecad/rpc.json`, which only 
 user can read. The `run_python` tool runs arbitrary Python inside FreeCAD, so any
 program that can read that file can control FreeCAD. Stop the bridge when you're not
 using it if that matters to you.
+
+## License
+
+[LGPL-2.1-or-later](LICENSE). The add-ons it installs are separate projects under
+their own licenses.

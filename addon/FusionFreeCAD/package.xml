@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no" ?>
 <package format="1" xmlns="https://wiki.freecad.org/Package_Metadata">
   <name>Fusion FreeCAD</name>
-  <description>Fusion 360-style workflow for FreeCAD, plus an MCP bridge so AI agents can drive it.</description>
+  <description>Fusion 360-style workflow for FreeCAD, plus an MCP bridge so AI agents can drive it. Not affiliated with Autodesk.</description>
   <version>0.1.0</version>
   <date>2026-10-14</date>
   <maintainer>RaresBaa</maintainer>

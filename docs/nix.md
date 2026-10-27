@@ -25,7 +25,7 @@ so `flake.lock` records their hashes the first time you use the flake.
   # (private repo; switch to github:RaresBaa/fusion-freecad if it becomes public)
 
   outputs = { home-manager, fusion-freecad, ... }: {
-    homeConfigurations.rares = home-manager.lib.homeManagerConfiguration {
+    homeConfigurations.me = home-manager.lib.homeManagerConfiguration {
       # ...
       modules = [
         fusion-freecad.homeManagerModules.default
