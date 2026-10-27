@@ -84,7 +84,8 @@
 - [x] Sketch tools: project model edges, offset a profile, fillet corners
       (constraints already go through `add_sketch_geometry` / `delete_sketch_geometry`)
 - [x] Features: draft, two-sided and tapered extrudes, text / emboss
-- [ ] Rib (FreeCAD has no rib feature: a thickened open profile up to the solid)
+- [x] Rib (FreeCAD has no rib feature: a thickened open profile up to the solid, as a
+      Python PartDesign feature); MCP tool `rib`
 - [x] Bodies: `move_body`, `copy_body`, `appearance` (colour, also of linked copies)
 - [ ] 2D drawings (TechDraw): views and dimensions, export to PDF / DXF
 - [x] MCP resources (documents, objects, timeline, parameters) and prompts (model a

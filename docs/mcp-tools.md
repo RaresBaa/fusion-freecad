@@ -60,6 +60,7 @@ names can change when earlier features change, so look them up again after edits
 | `press_pull(face, distance \| radius)` | Press Pull: move a flat face, e.g. `"Pad:Face6"`; positive adds, negative cuts. On a hole, boss or fillet face it resizes the feature that made it (`radius` sets it directly) |
 | `draft(faces, angle, neutral_plane, pull_direction?)` | Tilt side faces about a neutral plane |
 | `text(text, on, depth, size?, position?, font?)` | Raised (`depth` > 0) or engraved text on a face or plane; default font osifont, which ships with FreeCAD |
+| `rib(sketch, thickness, mode?, reversed?)` | Rib from an open profile up to the solid: `parallel` fills the sketch plane (a gusset), `normal` grows the thickened profile out of it (a wall); parametric |
 | `combine(target, tools, operation)` | Combine bodies: `join`, `cut` or `intersect` (a Boolean in the target's history); `keep_tools` leaves the tools visible |
 | `move_body(name, translate?, axis?, angle?, center?)` | Move/rotate a whole body, link or part, relative to where it is |
 | `copy_body(name, linked?, translate?)` | Independent copy (features copied) or a link that follows the original |

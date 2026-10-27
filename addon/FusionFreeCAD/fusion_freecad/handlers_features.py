@@ -1,11 +1,12 @@
-"""RPC handlers for PartDesign features beyond the basics: draft and text (Fusion:
-Draft, Text + Extrude)."""
+"""RPC handlers for PartDesign features beyond the basics: draft, text and rib (Fusion:
+Draft, Text + Extrude, Rib)."""
 
 import glob
 import os
 
 import FreeCAD as App
 
+from . import rib as ribs
 from .handlers import (HandlerError, _body_of, _feature_result, _hide, _mutating, _obj,
                        _reference, _resolve_body, _vec)
 
@@ -136,4 +137,38 @@ def text(doc, text, on="XY", depth=1.0, size=5.0, position=None, font=None,
     return out
 
 
-HANDLERS = {fn.__name__: fn for fn in [draft, text]}
+# Rib
+
+_RIB_MODES = {"parallel": ribs.MODES[0], "normal": ribs.MODES[1]}
+
+
+@_mutating("Rib")
+def rib(doc, sketch, thickness, mode="parallel", reversed=False, label=None):
+    """A thin wall from an open profile up to the solid (Fusion: Rib). ``parallel``
+    fills the sketch plane between the profile and the solid (a gusset); ``normal``
+    stands the thickened profile up out of the sketch plane until it meets the solid."""
+    if mode not in _RIB_MODES:
+        raise HandlerError("mode is 'parallel' or 'normal', got %r" % mode)
+    sk = _obj(doc, sketch)
+    body = _body_of(sk)
+    if body is None:
+        raise HandlerError("%s is not inside a PartDesign body" % sk.Name)
+    base = body.Tip
+    if base is None or base.Shape.isNull() or not base.Shape.Solids:
+        raise HandlerError("a rib needs a solid before it in %s" % body.Label)
+    sk.recompute()
+    normal = sk.Placement.Rotation.multVec(V(0, 0, 1))
+    try:  # fail here with the reason rather than leave a broken feature behind
+        ribs.rib_shape(base.Shape, sk.Shape, normal, float(thickness), _RIB_MODES[mode],
+                       bool(reversed))
+    except ribs.RibError as e:
+        raise HandlerError(str(e))
+    feat = ribs.make_rib(body, sk, float(thickness), _RIB_MODES[mode], bool(reversed))
+    if label:
+        feat.Label = label
+    _hide(sk)
+    doc.recompute()
+    return _feature_result(feat, body)
+
+
+HANDLERS = {fn.__name__: fn for fn in [draft, text, rib]}

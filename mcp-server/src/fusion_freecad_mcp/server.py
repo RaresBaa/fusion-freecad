@@ -618,6 +618,26 @@ def text(text: str,
                        document=document)
 
 
+@mcp.tool()
+def rib(sketch: Annotated[str, Field(
+            description="Sketch with an open profile (lines/arcs that don't close)")],
+        thickness: Annotated[float, Field(description="Wall thickness, mm")],
+        mode: Annotated[Literal["parallel", "normal"], Field(
+            description="'parallel': fill the sketch plane between the profile and the "
+                        "solid, thickness across the plane (a gusset in a corner); "
+                        "'normal': thicken the profile in the plane and grow it out of "
+                        "the plane until it meets the solid (a wall on a floor)")] = "parallel",
+        reversed: Annotated[bool, Field(
+            description="Grow towards the other side; by default the side where the "
+                        "solid stops it")] = False,
+        label: str | None = None, document: Doc = None) -> dict[str, Any]:
+    """Thin support wall from an open sketch profile up to the solid (Fusion: Rib),
+    e.g. a gusset in an L-bracket's corner: sketch one diagonal line on a plane through
+    the bracket. Stays parametric (edit the sketch or Thickness)."""
+    return client.call("rib", sketch=sketch, thickness=thickness, mode=mode,
+                       reversed=reversed, label=label, document=document)
+
+
 Edges = Annotated[list[str] | Literal["all"], Field(
     description="Edge names from get_topology, e.g. ['Edge1', 'Edge5'], or 'all'")]
 

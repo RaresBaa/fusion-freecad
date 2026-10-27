@@ -956,6 +956,57 @@ def test_extrude_options_draft_and_text(freecad):
         freecad.call("text", text="x", on=top, font="no-such-font-anywhere")
 
 
+def test_rib(freecad, tmp_path):
+    freecad.call("new_document", name="Rib")
+    # An L-bracket in XZ (sketch y is Z), 20 mm deep about the sketch plane.
+    l_shape = [{"type": "polygon", "points": [[0, 0], [50, 0], [50, 5], [5, 5], [5, 50],
+                                              [0, 50]]}]
+    sk = freecad.call("create_sketch", plane="XZ", geometry=l_shape)["sketch"]
+    bracket = freecad.call("pad", sketch=sk, length=20, midplane=True)
+    gusset = freecad.call("create_sketch", plane="XZ", geometry=[
+        {"type": "line", "start": [5, 40], "end": [40, 5]}])["sketch"]
+    with pytest.raises(BridgeError, match="other side|reversed side"):
+        freecad.call("rib", sketch=gusset, thickness=4, reversed=True)
+    r = freecad.call("rib", sketch=gusset, thickness=4)
+    assert "errors" not in r
+    # The corner triangle (legs 35) between the line and the walls, 4 mm thick.
+    assert r["shape"]["volume"] - bracket["shape"]["volume"] == pytest.approx(
+        35 * 35 / 2 * 4)
+    assert r["shape"]["solids"] == 1
+    freecad.call("set_property", name=r["feature"], property="Thickness", value=2)
+    assert freecad.call("get_object", name=r["feature"])["shape"]["volume"]         - bracket["shape"]["volume"] == pytest.approx(35 * 35 / 2 * 2)
+
+    # Parametric across save and reopen (the feature is a Python object).
+    path = tmp_path / "rib.FCStd"
+    freecad.call("save_document", path=str(path))
+    freecad.call("close_document", document="Rib")
+    freecad.call("open_document", path=str(path))
+    freecad.call("set_property", name=r["feature"], property="Thickness", value=4)
+    assert "errors" not in freecad.call("recompute")
+    assert freecad.call("get_object", name=r["feature"])["shape"]["volume"]         == pytest.approx(r["shape"]["volume"])
+
+    # An open box (60 x 40 x 20, 2 mm walls); an L-shaped wall grows down to the floor.
+    freecad.call("new_document", name="RibBox")
+    sk = freecad.call("create_sketch", geometry=[
+        {"type": "rectangle", "corner": [0, 0], "width": 60, "height": 40}])["sketch"]
+    freecad.call("pad", sketch=sk, length=20)
+    sk = freecad.call("create_sketch", offset=20, geometry=[
+        {"type": "rectangle", "corner": [2, 2], "width": 56, "height": 36}])["sketch"]
+    box = freecad.call("pocket", sketch=sk, length=18)
+    walls = freecad.call("create_sketch", offset=15, geometry=[
+        {"type": "line", "start": [30, 2], "end": [30, 20]},
+        {"type": "line", "start": [30, 20], "end": [58, 20]}])["sketch"]
+    w = freecad.call("rib", sketch=walls, thickness=2, mode="normal")
+    assert "errors" not in w
+    assert w["shape"]["volume"] - box["shape"]["volume"] == pytest.approx((18 + 28) * 2 * 13)
+
+    closed = freecad.call("create_sketch", offset=15, geometry=[
+        {"type": "polygon", "points": [[10, 10], [20, 10], [20, 20]]}])["sketch"]
+    with pytest.raises(BridgeError, match="open profile"):
+        freecad.call("rib", sketch=closed, thickness=2)
+    with pytest.raises(BridgeError, match="mode"):
+        freecad.call("rib", sketch=walls, thickness=2, mode="sideways")
+
 def test_mcp_resources_read_the_model(freecad, monkeypatch):
     import asyncio
     import json
