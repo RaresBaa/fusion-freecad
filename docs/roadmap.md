@@ -62,6 +62,8 @@
 - [x] Patch for SearchBar's FreeCAD 1.1 crash (drop when upstream #47 is fixed)
 - [x] S opens SearchBar's search box at the mouse (outside sketches)
 - [x] Sheet metal flat pattern export to DXF (`export` to `.dxf`, any flat part)
+- [x] Smooth over add-on rough edges: QuickMeasure shows short element names, PieMenu's
+      Tab is off in sketches in Fusion mode, toolbars come back after removing Ribbon
 - [ ] Test the Nix flake on NixOS
 
 ## 6. More Fusion tools

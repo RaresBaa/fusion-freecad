@@ -20,7 +20,8 @@ import contextlib
 import FreeCADGui as Gui
 from PySide import QtCore
 
-from . import marking, navigation, prefs, shortcuts, sketcher, sketcher_gui, tabs, timeline
+from . import (integrations, marking, navigation, prefs, shortcuts, sketcher, sketcher_gui,
+               tabs, timeline)
 
 FUSION = "FusionWorkbench"
 EDIT_WORKBENCHES = {"SketcherWorkbench", "PartDesignWorkbench"}
@@ -85,6 +86,7 @@ def leave():
     marking.restore()
     sketcher.restore()
     sketcher_gui.clear()
+    integrations.set_pie_menu_key(True)
     timeline.hide()
     tabs.hide()
     # FreeCAD just stored the groups the tab had hidden as hidden; undo that.
@@ -140,6 +142,8 @@ def _tick():
 
     # Sketcher tool actions only exist once a sketch has been opened, so the
     # sketch keys can only be bound from inside the sketcher.
-    if _sketch_in_edit():
+    in_sketch = _sketch_in_edit()
+    if in_sketch:
         shortcuts.apply_sketch()
+    integrations.set_pie_menu_key(not in_sketch)
     sketcher_gui.update()

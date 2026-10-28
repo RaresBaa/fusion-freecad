@@ -9,6 +9,8 @@ The same registry drives package.xml dependencies, the install scripts (addons.j
 and the Nix flake inputs; keep them in sync (scripts/check-addons.py verifies this).
 """
 
+import re
+
 import FreeCAD as App
 
 from . import prefs
@@ -209,7 +211,118 @@ def patch_searchbar():
     return True
 
 
+_ELEMENT = re.compile(r"\S*[.;]((?:Vertex|Edge|Face)\d+)\b")
+
+
+def short_element_names(text):
+    """'Pad.;#f:2;:H5f2:7,E.Edge1' (a selection's full subname) -> 'Edge1'."""
+    return _ELEMENT.sub(r"\1", text)
+
+
+def patch_quickmeasure():
+    """QuickMeasure names what it measured by the selection's full subname, which in
+    FreeCAD 1.x includes the toponaming map ('Pad.;#f:2;...Edge1'). Show 'Edge1'."""
+    try:
+        import inspect
+
+        import CD_Measure
+    except ImportError:
+        return False
+    method = CD_Measure.measureClass.measureSelected
+    if getattr(method, "_fusion_patched", False):
+        return False
+    try:
+        source = inspect.getsource(method)
+    except (OSError, TypeError):
+        return False
+    if "f0.fname, f0.bodyname" not in source:
+        return False  # changed upstream
+
+    def measureSelected(self):
+        method(self)
+        box = CD_Measure.form1.txtboxReport
+        text = box.toPlainText()
+        short = short_element_names(text)
+        if short != text:
+            box.setText(short)
+
+    measureSelected._fusion_patched = True
+    CD_Measure.measureClass.measureSelected = measureSelected
+    return True
+
+
 def apply_patches():
-    applied = [name for name, fn in [("SearchBar#47", patch_searchbar)] if fn()]
+    applied = [name for name, fn in [("SearchBar#47", patch_searchbar),
+                                     ("QuickMeasure names", patch_quickmeasure)] if fn()]
     if applied:
         App.Console.PrintLog("Fusion FreeCAD: patched %s\n" % ", ".join(applied))
+
+
+# ---------------------------------------------------------------------------
+# Leftovers of add-ons that change the whole interface.
+
+RIBBON_PARAMS = "User parameter:BaseApp/Preferences/Mod/FreeCAD-Ribbon"
+TOOLBAR_PARAMS = "User parameter:BaseApp/MainWindow/Toolbars"
+
+
+def ribbon_removed(ribbon_installed, ribbon_params=RIBBON_PARAMS):
+    """True once, on the first start after FreeCAD Ribbon was uninstalled.
+
+    Ribbon hides every classic toolbar and FreeCAD saves that, so without Ribbon the
+    toolbars would stay hidden. Its settings group outlives it, which tells us it was
+    there (also when it was removed before Fusion FreeCAD was installed)."""
+    pg = prefs()
+    if ribbon_installed:
+        pg.SetString("Ribbon", "installed")
+        return False
+    state = pg.GetString("Ribbon", "")
+    if state == "cleaned":
+        return False
+    seen = state == "installed" or bool(App.ParamGet(ribbon_params).GetContents())
+    pg.SetString("Ribbon", "cleaned" if seen else "never")
+    return seen
+
+
+def show_hidden_toolbars(toolbar_params=TOOLBAR_PARAMS):
+    """Mark every toolbar stored as hidden visible again; returns their names."""
+    stored = App.ParamGet(toolbar_params)
+    names =[n for n in stored.GetBools() if not stored.GetBool(n, True)]
+    for name in names:
+        stored.SetBool(name, True)
+    return names
+
+
+def restore_after_ribbon():
+    """Bring the toolbars and menu bar back after FreeCAD Ribbon was removed."""
+    ribbon = next(a for a in ADDONS if a.name == "FreeCAD-Ribbon")
+    if not ribbon_removed(is_installed(ribbon)):
+        return
+    names = set(show_hidden_toolbars())
+    from PySide import QtWidgets
+    mw = _gui().getMainWindow()
+    mw.menuBar().show()
+    for bar in mw.findChildren(QtWidgets.QToolBar):
+        if bar.objectName() in names:
+            bar.setVisible(True)
+    App.Console.PrintMessage("Fusion FreeCAD: FreeCAD Ribbon was removed; showed the "
+                             "%d toolbars it had hidden\n" % len(names))
+
+
+# PieMenu opens on Tab, which the sketcher uses to move between on-view inputs.
+# In Fusion mode its key is off while a sketch is open (our marking menu works there).
+PIE_ACTION = "PieMenuShortCut"
+
+
+def _pie_action():
+    from PySide import QtGui
+    action_type = getattr(QtGui, "QAction", None)
+    if action_type is None:
+        from PySide import QtWidgets
+        action_type = QtWidgets.QAction
+    return _gui().getMainWindow().findChild(action_type, PIE_ACTION)
+
+
+def set_pie_menu_key(enabled):
+    action = _pie_action()
+    if action is not None and action.isEnabled() != enabled:
+        action.setEnabled(enabled)

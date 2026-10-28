@@ -60,14 +60,17 @@ command, `run_command(command, selection=[...])` runs it like a click.
   setting off unless you've set it yourself. Its tools are in our Threads group.
 - **FreeCAD Ribbon** asks three things on its first start (a welcome form, "generate a
   data file?", and BIM's setup dialog, because it loads every workbench), checks GitHub
-  for updates on every start, and hides all classic toolbars, *saving* that. If you
-  remove Ribbon later, your toolbars stay hidden: use *Fusion → Show all Fusion
-  toolbars* (or *View → Toolbars*).
-- **PieMenu** uses Tab, which the sketcher also uses to move between on-view inputs.
+  for updates on every start, and hides all classic toolbars, *saving* that. On the first
+  start after you remove it, Fusion FreeCAD shows the toolbars it had hidden (and the
+  menu bar) again; *Fusion → Show all Fusion toolbars* does the same by hand.
+- **PieMenu** opens on Tab, which the sketcher uses to move between on-view inputs. In
+  Fusion mode its key is off while a sketch is open; use the marking menu (right-click)
+  there.
 - **Gears** adds a gear to the active PartDesign body if there is one, fusing it with
   your part. `create_gear` makes a separate part unless `in_body=True`.
-- **QuickMeasure** shows FreeCAD's internal element names (`Pad.;#f:2;...Edge1`) next to
-  the values; the values are right.
+- **QuickMeasure** names what it measured by FreeCAD's internal element name
+  (`Pad.;#f:2;...Edge1`). Fusion FreeCAD patches its report to show `Edge1`
+  (`integrations.patch_quickmeasure`; switches itself off if QuickMeasure changes).
 - **Render** does nothing useful until a render engine is installed.
 
 ## Updating the pins

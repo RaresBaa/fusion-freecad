@@ -456,6 +456,52 @@ App.ParamGet("User parameter:BaseApp/Preferences/Mod/FusionFreeCAD").RemGroup("T
     assert out["saved"] == ""
 
 
+def test_quickmeasure_names_shortened(freecad):
+    """QuickMeasure's report names elements by their full subname, toponaming map and
+    all; the patch shows just Edge1."""
+    pad = _block(freecad, "QuickMeasureNames")
+    out = freecad.call("run_python", code=f"""
+from fusion_freecad import integrations
+shape = doc.getObject("{pad}").Shape
+mapped = next(m for m, e in shape.ElementMap.items() if e == "Edge1")
+report = "Length = 40 mm\\n{pad}.;" + mapped + ".Edge1 of Body"
+result = {{"mapped": mapped, "short": integrations.short_element_names(report),
+          "plain": integrations.short_element_names("Face3 and {pad}.Vertex2, Body")}}
+""")["result"]
+    assert out["mapped"]
+    assert out["short"] == "Length = 40 mm\nEdge1 of Body"
+    assert out["plain"] == "Face3 and Vertex2, Body"
+
+
+def test_toolbars_shown_once_after_ribbon_removed(freecad):
+    out = freecad.call("run_python", code="""
+import FreeCAD as App
+from fusion_freecad import integrations, prefs
+root = "User parameter:BaseApp/Preferences/Mod/FusionFreeCAD/TestRibbon/"
+ribbon, bars = root + "Ribbon", root + "Toolbars"
+before = prefs().GetString("Ribbon", "")
+seen = []
+prefs().RemString("Ribbon")
+seen.append(integrations.ribbon_removed(False, ribbon))  # never had it
+prefs().RemString("Ribbon")
+App.ParamGet(ribbon).SetString("Theme", "dark")  # removed before we were installed
+seen.append(integrations.ribbon_removed(False, ribbon))
+seen.append(integrations.ribbon_removed(False, ribbon))  # only once
+App.ParamGet(ribbon).Clear()
+integrations.ribbon_removed(True, ribbon)  # installed again, then removed
+seen.append(integrations.ribbon_removed(False, ribbon))
+App.ParamGet(bars).SetBool("Sketch", False)
+App.ParamGet(bars).SetBool("Create", True)
+shown = integrations.show_hidden_toolbars(bars)
+result = {"seen": seen, "shown": shown, "sketch": App.ParamGet(bars).GetBool("Sketch", False)}
+App.ParamGet("User parameter:BaseApp/Preferences/Mod/FusionFreeCAD").RemGroup("TestRibbon")
+prefs().SetString("Ribbon", before) if before else prefs().RemString("Ribbon")
+""")["result"]
+    assert out["seen"] == [False, True, False, True]
+    assert out["shown"] == ["Sketch"]
+    assert out["sketch"] is True
+
+
 def _block(freecad, name, width=40, depth=20, height=10):
     """A centred width x depth x height box; returns its Pad's name."""
     freecad.call("new_document", name=name)

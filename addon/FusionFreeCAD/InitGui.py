@@ -61,6 +61,7 @@ def _fusion_freecad_autostart():
                                 shortcuts, sketcher)
 
     integrations.apply_patches()
+    integrations.restore_after_ribbon()
     layout.migrate()
     layout.install()
     # Undo Fusion shortcuts, navigation and sketcher settings left behind if FreeCAD last quit inside
