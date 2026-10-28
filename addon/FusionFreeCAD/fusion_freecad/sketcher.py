@@ -18,8 +18,11 @@ import FreeCAD as App
 from . import prefs
 
 ROOT = "User parameter:BaseApp/Preferences/"
-SETTINGS = [  # (group, name, value in Fusion mode)
+SETTINGS = [  # (group, name, value in Fusion mode), applied and restored in this order
     ("Mod/Sketcher/General", "AutoConstraints", True),
+    # FreeCAD 1.1 reads this one from Mod/Sketcher, but only when it changes in
+    # Mod/Sketcher/General: set the value first, then the trigger.
+    ("Mod/Sketcher", "LeaveSketchWithEscape", False),
     ("Mod/Sketcher/General", "LeaveSketchWithEscape", False),
     ("Mod/Sketcher/Tools", "OnViewParameterVisibility", 1),  # dimensional only
     ("Mod/Sketcher/Snap", "SnapToObjects", True),

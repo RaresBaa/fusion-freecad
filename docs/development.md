@@ -111,3 +111,8 @@ and the MCP server copy.
 - TechDraw's automatic scale never goes above 1:1; `create_drawing` picks its own.
 - Dimension `X`/`Y` are relative to the view, in sheet mm with Y up, the same frame as
   `getVisibleEdges()`; TechDraw leaves new ones at the view's centre.
+- The sketcher's `LeaveSketchWithEscape` (1.1) is read from `Mod/Sketcher` but only
+  re-read when it changes in `Mod/Sketcher/General` (where the preferences page writes
+  it). Set it in both, `Mod/Sketcher` first; `sketcher.SETTINGS` does.
+- `QTest.keyClick(view.graphicsView().viewport(), Qt.Key_Escape)` reaches the sketcher
+  like a real key press, for checking Esc behaviour through `run_python`.
