@@ -62,7 +62,8 @@ command, `run_command(command, selection=[...])` runs it like a click.
   data file?", and BIM's setup dialog, because it loads every workbench), checks GitHub
   for updates on every start, and hides all classic toolbars, *saving* that. On the first
   start after you remove it, Fusion FreeCAD shows the toolbars it had hidden (and the
-  menu bar) again; *Fusion → Show all Fusion toolbars* does the same by hand.
+  menu bar) again, except the ones FreeCAD hides by default (Clipboard, Individual
+  Views, Macro); *Fusion → Show all Fusion toolbars* does the same by hand.
 - **PieMenu** opens on Tab, which the sketcher uses to move between on-view inputs. In
   Fusion mode its key is off while a sketch is open; use the marking menu (right-click)
   there.

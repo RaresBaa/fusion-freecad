@@ -283,10 +283,15 @@ def ribbon_removed(ribbon_installed, ribbon_params=RIBBON_PARAMS):
     return seen
 
 
+HIDDEN_BY_DEFAULT = {"Clipboard", "Individual Views", "Macro"}  # FreeCAD 1.1
+
+
 def show_hidden_toolbars(toolbar_params=TOOLBAR_PARAMS):
-    """Mark every toolbar stored as hidden visible again; returns their names."""
+    """Mark every toolbar stored as hidden visible again, except the ones FreeCAD
+    hides by default; returns their names."""
     stored = App.ParamGet(toolbar_params)
-    names =[n for n in stored.GetBools() if not stored.GetBool(n, True)]
+    names = [n for n in stored.GetBools()
+             if not stored.GetBool(n, True) and n not in HIDDEN_BY_DEFAULT]
     for name in names:
         stored.SetBool(name, True)
     return names

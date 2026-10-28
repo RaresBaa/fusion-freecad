@@ -492,14 +492,17 @@ integrations.ribbon_removed(True, ribbon)  # installed again, then removed
 seen.append(integrations.ribbon_removed(False, ribbon))
 App.ParamGet(bars).SetBool("Sketch", False)
 App.ParamGet(bars).SetBool("Create", True)
+App.ParamGet(bars).SetBool("Macro", False)  # hidden by default: stays hidden
 shown = integrations.show_hidden_toolbars(bars)
-result = {"seen": seen, "shown": shown, "sketch": App.ParamGet(bars).GetBool("Sketch", False)}
+result = {"seen": seen, "shown": shown, "sketch": App.ParamGet(bars).GetBool("Sketch", False),
+          "macro": App.ParamGet(bars).GetBool("Macro", True)}
 App.ParamGet("User parameter:BaseApp/Preferences/Mod/FusionFreeCAD").RemGroup("TestRibbon")
 prefs().SetString("Ribbon", before) if before else prefs().RemString("Ribbon")
 """)["result"]
     assert out["seen"] == [False, True, False, True]
     assert out["shown"] == ["Sketch"]
     assert out["sketch"] is True
+    assert out["macro"] is False
 
 
 def _block(freecad, name, width=40, depth=20, height=10):
