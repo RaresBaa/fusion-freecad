@@ -401,6 +401,61 @@ for feature, face in %r:
     assert out == [pytest.approx(10), pytest.approx(0), pytest.approx(15)]
 
 
+def test_sketch_profiles(freecad):
+    """Fusion's profiles: overlapping loops split into regions, holes left open,
+    construction and dangling lines ignored."""
+    freecad.call("new_document", name="Profiles")
+    sketch = freecad.call("create_sketch", geometry=[
+        {"type": "circle", "center": [0, 0], "radius": 10},
+        {"type": "circle", "center": [12, 0], "radius": 10},
+        {"type": "rectangle", "corner": [40, -10], "width": 20, "height": 20},
+        {"type": "circle", "center": [50, 0], "radius": 3},
+        {"type": "line", "start": [-30, -30], "end": [-20, -30]},
+        {"type": "circle", "center": [0, 30], "radius": 5, "construction": True}])["sketch"]
+    out = freecad.call("run_python", code="""
+from fusion_freecad import sketcher
+sk = doc.getObject(%r)
+before = sketcher.signature(sk)
+result = {"areas": sorted(round(f.Area, 1) for f in sketcher.profiles(sk))}
+sk.moveGeometry(1, 3, App.Vector(13, 0, 0))
+result["changed"] = sketcher.signature(sk) != before
+""" % sketch)["result"]
+    lens = 2 * (100 * math.acos(0.6) - 6 * 8)
+    crescent = math.pi * 100 - lens
+    assert out["areas"] == sorted(round(a, 1) for a in
+                                  [lens, crescent, crescent, 400 - 9 * math.pi, 9 * math.pi])
+    assert out["changed"]
+
+
+def test_sketcher_settings_saved_and_restored(freecad):
+    """Fusion mode sets the sketcher settings and puts the user's back afterwards:
+    unset ones are removed again, ones the user changed meanwhile are kept."""
+    out = freecad.call("run_python", code="""
+import FreeCAD as App
+from fusion_freecad import sketcher
+root = "User parameter:BaseApp/Preferences/Mod/FusionFreeCAD/TestSketcher/"
+settings = [("A", "Esc", False), ("A", "Auto", True), ("B", "Ovp", 1), ("B", "Snap", True)]
+a, b = App.ParamGet(root + "A"), App.ParamGet(root + "B")
+store = App.ParamGet(root + "Store")
+a.SetBool("Esc", True)
+b.SetInt("Ovp", 2)
+sketcher.apply(settings, root, store)
+sketcher.apply(settings, root, store)  # again (crash leftover): originals stay
+inside = (a.GetContents(), b.GetContents())
+b.SetBool("Snap", False)  # the user turns snapping off in Fusion mode
+sketcher.restore(settings, root, store)
+result = {"inside": [sorted(c) for c in inside],
+          "after": [sorted(a.GetContents() or []), sorted(b.GetContents() or [])],
+          "saved": store.GetString(sketcher.SAVED, "")}
+App.ParamGet("User parameter:BaseApp/Preferences/Mod/FusionFreeCAD").RemGroup("TestSketcher")
+""")["result"]
+    assert out["inside"] == [[["Boolean", "Auto", True], ["Boolean", "Esc", False]],
+                             [["Boolean", "Snap", True], ["Integer", "Ovp", 1]]]
+    assert out["after"] == [[["Boolean", "Esc", True]],
+                            [["Boolean", "Snap", False], ["Integer", "Ovp", 2]]]
+    assert out["saved"] == ""
+
+
 def _block(freecad, name, width=40, depth=20, height=10):
     """A centred width x depth x height box; returns its Pad's name."""
     freecad.call("new_document", name=name)

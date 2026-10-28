@@ -24,6 +24,10 @@ Status: early. Working today:
   original.
 - **Change Parameters** (Modify): one table of named values (`width`, `wall`...) that
   sketch dimensions and features use as `Parameters.width`; edit one and the model follows.
+- **Sketches**: closed regions are shaded while you edit, like Fusion's profiles
+  (overlapping loops split into separate regions). FreeCAD infers constraints and
+  turns values you type while drawing into dimensions; in the Fusion workbench those
+  stay on, and Esc cancels the tool without closing the sketch.
 - **Fusion keys**: E extrude, F fillet, H hole, Q press/pull, S search at the mouse; in sketches R rectangle,
   D dimension, X construction, O offset. Optionally L line, C circle, P project (*Fusion* menu).
   They're only active while you're in the Fusion workbench.

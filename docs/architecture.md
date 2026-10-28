@@ -34,6 +34,8 @@ FreeCAD uses only the standard library; everything MCP-specific lives in `mcp-se
 | `handlers_features.py` | RPC handlers for draft and text |
 | `handlers_inspect.py` | RPC handlers that check a model: geometry check, interference, materials and mass |
 | `handlers_addons.py` | RPC handlers that drive those add-ons (fasteners, gears, sheet metal, any command) |
+| `sketcher.py` | Sketcher settings in Fusion mode (saved and restored); a sketch's closed profiles. No Qt |
+| `sketcher_gui.py` | Shades the profiles of the sketch being edited (a Coin node in the 3D view) |
 | `shortcuts.py` | Fusion single-key shortcuts and restoring FreeCAD's originals |
 | `navigation.py` | Fusion mouse navigation (Revit style) in Fusion mode |
 | `marking.py` | Fusion's radial right-click menu (marking menu) in the 3D view, in Fusion mode |
@@ -189,6 +191,25 @@ FreeCAD's Revit navigation style matches. Like the shortcuts, it's set (preferen
 open views) when Fusion mode starts and the user's style comes back when it ends,
 with the original kept in `SavedNavigationStyle` for crash cleanup. If the user picks
 another style while in Fusion mode, theirs is kept.
+
+## Sketcher (`sketcher.py`, `sketcher_gui.py`)
+
+FreeCAD's sketcher already does Fusion's constraint inference (auto-constraints) and
+dimensions on create: a value typed into an on-view parameter while drawing becomes a
+constraint. Fusion mode switches those on, plus snap to objects, and turns off
+`LeaveSketchWithEscape` so Esc only cancels the tool. Like navigation, the user's
+values are kept in `SavedSketcherSettings` (unset ones as `null`, removed again on
+restore) and come back when Fusion mode ends, unless the user changed that setting
+meanwhile.
+
+Profiles are found by splitting a plane larger than the sketch with its
+non-construction edges (General Fuse): every piece that doesn't reach the plane's
+border is a closed region, so overlapping loops give separate regions and dangling
+lines split nothing. The Fusion mode poll calls `sketcher_gui.update()`, which
+rebuilds the shading only when a few sampled points along the edges of the
+sketch's `Geometry` (or its placement) change. The shading is an unpickable,
+transparent Coin node in the view's scene graph with the sketch's global placement,
+and a negative polygon offset so a face the sketch lies on doesn't hide it.
 
 ## Marking menu (`marking.py`)
 

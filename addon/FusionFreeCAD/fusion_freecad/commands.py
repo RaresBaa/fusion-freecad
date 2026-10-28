@@ -127,6 +127,43 @@ class _ToggleSketcherOverride:
         return True
 
 
+class _ToggleSketcher:
+    def GetResources(self):
+        return {"MenuText": "Fusion sketcher settings",
+                "ToolTip": "Auto-constraints, on-view dimensions while drawing, snap to "
+                           "objects, and Esc cancels the tool without closing the sketch. "
+                           "Only active in the Fusion workbench.",
+                "Checkable": prefs().GetBool("FusionSketcher", True)}
+
+    def Activated(self, checked=None):
+        from . import sketcher
+
+        if checked is None:
+            checked = not sketcher.enabled()
+        sketcher.set_enabled(checked)
+
+    def IsActive(self):
+        return True
+
+
+class _ToggleProfiles:
+    def GetResources(self):
+        return {"MenuText": "Shade sketch profiles",
+                "ToolTip": "Fill the closed regions of the sketch being edited, like "
+                           "Fusion's profiles",
+                "Checkable": prefs().GetBool("ShadeProfiles", True)}
+
+    def Activated(self, checked=None):
+        from . import sketcher_gui
+
+        if checked is None:
+            checked = not sketcher_gui.enabled()
+        sketcher_gui.set_enabled(checked)
+
+    def IsActive(self):
+        return True
+
+
 class _ToggleNavigation:
     def GetResources(self):
         return {"MenuText": "Fusion mouse navigation",
@@ -251,7 +288,8 @@ class _SearchAtCursor:
 BRIDGE_COMMANDS = ["FusionFreeCAD_StartBridge", "FusionFreeCAD_StopBridge"]
 MENU = ["FusionFreeCAD_ToggleTimeline", "FusionFreeCAD_ToggleGroupSketches",
         "FusionFreeCAD_ToggleShortcuts",
-        "FusionFreeCAD_ToggleSketcherOverride", "FusionFreeCAD_ToggleNavigation",
+        "FusionFreeCAD_ToggleSketcherOverride", "FusionFreeCAD_ToggleSketcher",
+        "FusionFreeCAD_ToggleProfiles", "FusionFreeCAD_ToggleNavigation",
         "FusionFreeCAD_ToggleMarkingMenu",
         "FusionFreeCAD_ToggleTabs", "FusionFreeCAD_ShowToolbars",
         "FusionFreeCAD_SearchAtCursor",
@@ -273,6 +311,8 @@ def register():
     Gui.addCommand("FusionFreeCAD_ToggleGroupSketches", _ToggleGroupSketches())
     Gui.addCommand("FusionFreeCAD_ToggleShortcuts", _ToggleShortcuts())
     Gui.addCommand("FusionFreeCAD_ToggleSketcherOverride", _ToggleSketcherOverride())
+    Gui.addCommand("FusionFreeCAD_ToggleSketcher", _ToggleSketcher())
+    Gui.addCommand("FusionFreeCAD_ToggleProfiles", _ToggleProfiles())
     Gui.addCommand("FusionFreeCAD_ToggleNavigation", _ToggleNavigation())
     Gui.addCommand("FusionFreeCAD_ToggleMarkingMenu", _ToggleMarkingMenu())
     Gui.addCommand("FusionFreeCAD_ToggleTabs", _ToggleTabs())

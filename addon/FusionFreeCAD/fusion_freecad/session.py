@@ -20,7 +20,7 @@ import contextlib
 import FreeCADGui as Gui
 from PySide import QtCore
 
-from . import marking, navigation, prefs, shortcuts, tabs, timeline
+from . import marking, navigation, prefs, shortcuts, sketcher, sketcher_gui, tabs, timeline
 
 FUSION = "FusionWorkbench"
 EDIT_WORKBENCHES = {"SketcherWorkbench", "PartDesignWorkbench"}
@@ -64,6 +64,7 @@ def enter():
     shortcuts.apply()
     navigation.apply()
     marking.apply()
+    sketcher.apply()
     if prefs().GetBool("ShowTimeline", True):
         timeline.show()
     # FreeCAD shows the workbench's toolbars after Activated(); pick the tab's after.
@@ -82,6 +83,8 @@ def leave():
     shortcuts.restore()
     navigation.restore()
     marking.restore()
+    sketcher.restore()
+    sketcher_gui.clear()
     timeline.hide()
     tabs.hide()
     # FreeCAD just stored the groups the tab had hidden as hidden; undo that.
@@ -139,3 +142,4 @@ def _tick():
     # sketch keys can only be bound from inside the sketcher.
     if _sketch_in_edit():
         shortcuts.apply_sketch()
+    sketcher_gui.update()

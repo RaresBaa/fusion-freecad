@@ -74,7 +74,11 @@
       Group selected; stored on the body); MCP tools `group_timeline`, `edit_timeline_group`
 - [x] Marking menu: Fusion's radial right-click menu in the 3D view (click for the ring,
       right-drag to mark; sketch / dialog / part rings; More... opens FreeCAD's menu)
-- [ ] Sketch: closer to Fusion's sketcher (constraint inference, dimension on create)
+- [x] Sketch: closer to Fusion's sketcher. FreeCAD 1.1 already infers constraints
+      (auto-constraints) and makes dimensions from values typed while drawing
+      (on-view parameters); Fusion mode keeps those on and Esc no longer closes the
+      sketch. Closed profiles are shaded while editing, overlapping loops as
+      separate regions
 
 ## 7. More MCP tools
 
