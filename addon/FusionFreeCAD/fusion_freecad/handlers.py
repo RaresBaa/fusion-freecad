@@ -1402,10 +1402,18 @@ def set_view(view="isometric", fit=True):
 
 def screenshot(view=None, width=1024, height=768, fit=False):
     v = _view()
-    if view:
-        set_view(view, fit)
-    elif fit:
-        v.fitAll()
+    # saveImage doesn't wait for FreeCAD's camera animation, so a view change would
+    # be captured half-way (a cut-off sliver of the model); switch it off meanwhile.
+    pg = App.ParamGet("User parameter:BaseApp/Preferences/View")
+    animate = pg.GetBool("UseNavigationAnimations", True)
+    pg.SetBool("UseNavigationAnimations", False)
+    try:
+        if view:
+            set_view(view, fit)
+        elif fit:
+            v.fitAll()
+    finally:
+        pg.SetBool("UseNavigationAnimations", animate)
     Gui.updateGui()
     fd, path = tempfile.mkstemp(suffix=".png", prefix="fusion_freecad_")
     os.close(fd)
