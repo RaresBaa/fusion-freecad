@@ -64,7 +64,7 @@
 - [x] Sheet metal flat pattern export to DXF (`export` to `.dxf`, any flat part)
 - [x] Smooth over add-on rough edges: QuickMeasure shows short element names, PieMenu's
       Tab is off in sketches in Fusion mode, toolbars come back after removing Ribbon
-- [ ] Test the Nix flake on NixOS
+- [x] Test the Nix flake on NixOS (x86_64; see docs/nix.md for known issues)
 
 ## 6. More Fusion tools
 

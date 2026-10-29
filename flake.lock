@@ -1,0 +1,297 @@
+{
+  "nodes": {
+    "Curves": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1791783092,
+        "narHash": "sha256-r2fULNvf+durt7+YV7CmOlln59NaT9j1sNAnTRUGwcA=",
+        "owner": "tomate44",
+        "repo": "CurvesWB",
+        "rev": "c08e21ba16b8d6c6846cee3c9a6b1ea950987f36",
+        "type": "github"
+      },
+      "original": {
+        "owner": "tomate44",
+        "repo": "CurvesWB",
+        "rev": "c08e21ba16b8d6c6846cee3c9a6b1ea950987f36",
+        "type": "github"
+      }
+    },
+    "Defeaturing": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1781770718,
+        "narHash": "sha256-28k9sO7F/5r2W0IqulfHN92WA/4ll/Dc108r0veEUJg=",
+        "owner": "easyw",
+        "repo": "Defeaturing_WB",
+        "rev": "460cfdd02bddc622443b3dc78cc3ed2d31ccf0bd",
+        "type": "github"
+      },
+      "original": {
+        "owner": "easyw",
+        "repo": "Defeaturing_WB",
+        "rev": "460cfdd02bddc622443b3dc78cc3ed2d31ccf0bd",
+        "type": "github"
+      }
+    },
+    "FreeCAD-Ribbon": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1791914402,
+        "narHash": "sha256-reiQZ8l1nquWb++RnDCbalnCwt0FQFbRtvgMlCpYbM8=",
+        "owner": "APEbbers",
+        "repo": "FreeCAD-Ribbon",
+        "rev": "3416a8a2e29763e3c3178cf09044e16aa94347c2",
+        "type": "github"
+      },
+      "original": {
+        "owner": "APEbbers",
+        "repo": "FreeCAD-Ribbon",
+        "rev": "3416a8a2e29763e3c3178cf09044e16aa94347c2",
+        "type": "github"
+      }
+    },
+    "FusedFilamentDesign": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1788279954,
+        "narHash": "sha256-p+v1u2V48UfxcmRvVX9GcmaqPknSU6my7MxAn/5N9+E=",
+        "owner": "rahix",
+        "repo": "FusedFilamentDesign",
+        "rev": "870e5dbb6bf8d276b54f053ca95456836803796d",
+        "type": "github"
+      },
+      "original": {
+        "owner": "rahix",
+        "repo": "FusedFilamentDesign",
+        "rev": "870e5dbb6bf8d276b54f053ca95456836803796d",
+        "type": "github"
+      }
+    },
+    "Gridfinity": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1772590499,
+        "narHash": "sha256-pJs4oLpSa3YHlj15Cx4RCF3NKLefJ5MrjQaCqqr0ufE=",
+        "owner": "Stu142",
+        "repo": "FreeCAD-Gridfinity-Workbench",
+        "rev": "6caeb02812bf3b389110c205c6fd48638353e957",
+        "type": "github"
+      },
+      "original": {
+        "owner": "Stu142",
+        "repo": "FreeCAD-Gridfinity-Workbench",
+        "rev": "6caeb02812bf3b389110c205c6fd48638353e957",
+        "type": "github"
+      }
+    },
+    "Manipulator": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1774455500,
+        "narHash": "sha256-rp+YC/3k+9hDNfvkhBZQ1oUc1EoUmrZP0ix5RVxgxZI=",
+        "owner": "easyw",
+        "repo": "Manipulator",
+        "rev": "6d8990469d1c1c2788c873af96ebecff2377833d",
+        "type": "github"
+      },
+      "original": {
+        "owner": "easyw",
+        "repo": "Manipulator",
+        "rev": "6d8990469d1c1c2788c873af96ebecff2377833d",
+        "type": "github"
+      }
+    },
+    "OpenTheme": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1791572018,
+        "narHash": "sha256-z/tXHFIc/LZcesCUaeTR7Lp4DVOpwqIs4yve85l6JLA=",
+        "owner": "obelisk79",
+        "repo": "OpenTheme",
+        "rev": "de8a3a86ae6779993f07318557c18e7adf221dde",
+        "type": "github"
+      },
+      "original": {
+        "owner": "obelisk79",
+        "repo": "OpenTheme",
+        "rev": "de8a3a86ae6779993f07318557c18e7adf221dde",
+        "type": "github"
+      }
+    },
+    "PieMenu": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1781885028,
+        "narHash": "sha256-CglVTabiR4cK9Q80344q6S7R8zcdD02tF1WXbAhfrFk=",
+        "owner": "Grubuntu",
+        "repo": "PieMenu",
+        "rev": "e95beb9ca7cb89cdd803b1e1e6aff222d87e11a8",
+        "type": "github"
+      },
+      "original": {
+        "owner": "Grubuntu",
+        "repo": "PieMenu",
+        "rev": "e95beb9ca7cb89cdd803b1e1e6aff222d87e11a8",
+        "type": "github"
+      }
+    },
+    "QuickMeasure": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1754546083,
+        "narHash": "sha256-J/+qONFu+lubRSZIo87/6lC8Gtm58AkA1pbIrJMJACo=",
+        "owner": "DanMiel",
+        "repo": "QuickMeasure",
+        "rev": "ebbd4b2d7dd7f40ed7b30a30a14b4221400cd1e8",
+        "type": "github"
+      },
+      "original": {
+        "owner": "DanMiel",
+        "repo": "QuickMeasure",
+        "rev": "ebbd4b2d7dd7f40ed7b30a30a14b4221400cd1e8",
+        "type": "github"
+      }
+    },
+    "Render": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1778938407,
+        "narHash": "sha256-dWjIyg8pPPQP0eiqsp6Mx8Gau83D/XVNdHM/wv6R+jE=",
+        "owner": "FreeCAD",
+        "repo": "FreeCAD-render",
+        "rev": "08be2fe94b8a998323c8a5443f7f0afd0d05bed5",
+        "type": "github"
+      },
+      "original": {
+        "owner": "FreeCAD",
+        "repo": "FreeCAD-render",
+        "rev": "08be2fe94b8a998323c8a5443f7f0afd0d05bed5",
+        "type": "github"
+      }
+    },
+    "SearchBar": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1790869897,
+        "narHash": "sha256-abAx4ddmx2TR/G9Abi+MTlSDIU29NpB8002BOczLWOQ=",
+        "owner": "APEbbers",
+        "repo": "SearchBar",
+        "rev": "c36a2ed17e2ba5572fb0af19c5c560084f42296a",
+        "type": "github"
+      },
+      "original": {
+        "owner": "APEbbers",
+        "repo": "SearchBar",
+        "rev": "c36a2ed17e2ba5572fb0af19c5c560084f42296a",
+        "type": "github"
+      }
+    },
+    "ThreadProfile": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1789409195,
+        "narHash": "sha256-WCwkWaxTdjJTDE/PzBPe4j8ljSCYHgmrh7NZHEAQhYM=",
+        "owner": "mwganson",
+        "repo": "ThreadProfile",
+        "rev": "2aa2e739c0f401d3addd28fd172d9f74c304aabc",
+        "type": "github"
+      },
+      "original": {
+        "owner": "mwganson",
+        "repo": "ThreadProfile",
+        "rev": "2aa2e739c0f401d3addd28fd172d9f74c304aabc",
+        "type": "github"
+      }
+    },
+    "fasteners": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1789064160,
+        "narHash": "sha256-5Thrf7AnyXZJfn2nguEmCT+Q0wXNcnKvWzOtwsnIeHI=",
+        "owner": "shaise",
+        "repo": "FreeCAD_FastenersWB",
+        "rev": "fddd07af422b7d3a69098b32333711c5eeae184c",
+        "type": "github"
+      },
+      "original": {
+        "owner": "shaise",
+        "repo": "FreeCAD_FastenersWB",
+        "rev": "fddd07af422b7d3a69098b32333711c5eeae184c",
+        "type": "github"
+      }
+    },
+    "freecad-gears": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1789455117,
+        "narHash": "sha256-BLEIdkRe/eX+ef5WrqCnFB+HxBqu/on26dyoUH0q16w=",
+        "owner": "looooo",
+        "repo": "freecad.gears",
+        "rev": "83ec154b1925347622b61812f75d2ed51e956b9f",
+        "type": "github"
+      },
+      "original": {
+        "owner": "looooo",
+        "repo": "freecad.gears",
+        "rev": "83ec154b1925347622b61812f75d2ed51e956b9f",
+        "type": "github"
+      }
+    },
+    "nixpkgs": {
+      "locked": {
+        "lastModified": 1793110635,
+        "narHash": "sha256-dhoW6VgFWlaodSY5jrBn+CF2FLmaUvDVgM7+C7T2+NM=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "31ecbaca1bdefa45dffc409f0250bd8039ea0010",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "ref": "nixos-unstable",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "root": {
+      "inputs": {
+        "Curves": "Curves",
+        "Defeaturing": "Defeaturing",
+        "FreeCAD-Ribbon": "FreeCAD-Ribbon",
+        "FusedFilamentDesign": "FusedFilamentDesign",
+        "Gridfinity": "Gridfinity",
+        "Manipulator": "Manipulator",
+        "OpenTheme": "OpenTheme",
+        "PieMenu": "PieMenu",
+        "QuickMeasure": "QuickMeasure",
+        "Render": "Render",
+        "SearchBar": "SearchBar",
+        "ThreadProfile": "ThreadProfile",
+        "fasteners": "fasteners",
+        "freecad-gears": "freecad-gears",
+        "nixpkgs": "nixpkgs",
+        "sheetmetal": "sheetmetal"
+      }
+    },
+    "sheetmetal": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1791881812,
+        "narHash": "sha256-otJlThQw+nM6lowgS6Q+lvTXrvNcGDUI61Ubm6PKF7w=",
+        "owner": "shaise",
+        "repo": "FreeCAD_SheetMetal",
+        "rev": "ca922534bc192e114014e49ca3192a66cd77107c",
+        "type": "github"
+      },
+      "original": {
+        "owner": "shaise",
+        "repo": "FreeCAD_SheetMetal",
+        "rev": "ca922534bc192e114014e49ca3192a66cd77107c",
+        "type": "github"
+      }
+    }
+  },
+  "root": "root",
+  "version": 7
+}

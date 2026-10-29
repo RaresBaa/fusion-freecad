@@ -46,11 +46,33 @@
       # The Fusion FreeCAD addon folder (its name in Mod/ must stay FusionFreeCAD).
       fusionAddon = ./addon/FusionFreeCAD;
 
+      # Fixes for add-ons that assume FreeCAD's official builds.
+      patchAddon = pkgs: name: src: {
+        # nixpkgs' FreeCAD has no git revision (App.Version()[3] is "Unknown"), which
+        # made Ribbon raise at startup after hiding the classic toolbars.
+        FreeCAD-Ribbon = pkgs.runCommand "FreeCAD-Ribbon" { } ''
+          cp -r ${src} $out
+          chmod -R u+w $out
+          substituteInPlace $out/Standard_Functions_Ribbon.py --replace-fail \
+            'git_version = int(version[3].split(" ")[0])' \
+            'git_version = int(version[3].split(" ")[0]) if version[3].split(" ")[0].isdigit() else git'
+          substituteInPlace $out/FCBinding.py --replace-fail \
+            'int(version[3].split(" ")[0])' \
+            'int(version[3].split(" ")[0] if version[3].split(" ")[0].isdigit() else 0)'
+          # It copies its default layout out of the (read-only) store with shutil.copy,
+          # which keeps the mode, and then can't save the layout.
+          substituteInPlace $out/InitGui.py \
+            --replace-fail 'shutil.copy(source, file)' 'shutil.copyfile(source, file)' \
+            --replace-fail 'shutil.copy(source_default, file_default)' \
+              'shutil.copyfile(source_default, file_default)'
+        '';
+      }.${name} or src;
+
       # { "<Mod folder name>" = <path>; } for our addon plus the chosen add-ons.
-      modsFor = choice:
+      modsFor = pkgs: choice:
         { FusionFreeCAD = fusionAddon; }
-        // lib.listToAttrs (map (a: lib.nameValuePair a.name inputs.${inputName a.name})
-          (addonsFor choice));
+        // lib.listToAttrs (map (a: lib.nameValuePair a.name
+          (patchAddon pkgs a.name inputs.${inputName a.name})) (addonsFor choice));
 
       pythonPackagesFor = choice: lib.unique (lib.concatMap (a: a.python) (addonsFor choice));
 
@@ -73,15 +95,19 @@
 
           # All Mod folders in one directory, e.g. for FreeCAD's --module-path.
           modsDir = choice: pkgs.linkFarm "fusion-freecad-mods-${choice}"
-            (lib.mapAttrsToList (name: path: { inherit name path; }) (modsFor choice));
+            (lib.mapAttrsToList (name: path: { inherit name path; }) (modsFor pkgs choice));
 
           # FreeCAD with the addons built in, via nixpkgs' freecad.customize.
+          # Modules are passed as <modsDir>/<name> so each module path keeps the add-on's
+          # folder name (Fusion FreeCAD finds some add-ons by it). mainProgram, so
+          # `nix run` starts bin/freecad rather than bin/freecad-fusion.
           freecadWith = choice:
-            pkgs.freecad.customize {
+            lib.addMetaAttrs { mainProgram = "freecad"; } (pkgs.freecad.customize {
               name = "freecad-fusion";
-              modules = lib.attrValues (modsFor choice);
+              modules = map (name: "${modsDir choice}/${name}")
+                (lib.attrNames (modsFor pkgs choice));
               pythons = [ (ps: map (n: ps.${n}) (pythonPackagesFor choice)) ];
-            };
+            });
         in
         {
           inherit mcp-server;
@@ -154,7 +180,7 @@
           config = lib.mkIf cfg.enable {
             xdg.dataFile = lib.mapAttrs'
               (name: path: lib.nameValuePair "${cfg.freecadDataDir}/Mod/${name}" { source = path; })
-              (removeAttrs (modsFor cfg.addons)
+              (removeAttrs (modsFor pkgs cfg.addons)
                 (lib.optional (!cfg.linkFusionAddon) "FusionFreeCAD"));
 
             home.packages =

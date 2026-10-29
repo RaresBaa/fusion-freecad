@@ -1,7 +1,8 @@
 # NixOS
 
-> **Status: untested.** The flake was written on Windows without Nix available. It has
-> been syntax-checked, not evaluated or built. Please report what breaks.
+> **Status:** tested on NixOS (x86_64, nixos-unstable 2026-10, FreeCAD 1.1.4): the
+> packages, the Home Manager module, the dev shell and the MCP bridge work. aarch64 is
+> untested. See [Known issues](#known-issues).
 
 The flake provides:
 
@@ -52,11 +53,16 @@ with FreeCAD's Addon Manager; change the flake instead.
 ## FreeCAD with everything built in
 
 ```sh
-nix run .#freecad
+nix run .#freecad       # default add-on set
+nix run .#freecad-all   # also FreeCAD Ribbon and PieMenu (they change the whole interface)
 ```
 
 This uses nixpkgs' `freecad.customize { modules; pythons; }`. If your nixpkgs doesn't
 have it, the `freecad` package is simply absent; use the Home Manager module instead.
+
+The flake patches FreeCAD Ribbon for nixpkgs' FreeCAD, which reports its git revision as
+"Unknown" (Ribbon raised at startup, after hiding the classic toolbars) and whose add-on
+files are read-only (Ribbon copied its layout with their mode and couldn't save it).
 
 ## Connecting Claude Code
 
@@ -64,6 +70,10 @@ have it, the `freecad` package is simply absent; use the Home Manager module ins
 claude mcp add --scope user freecad -- fusion-freecad-mcp     # with the HM module
 claude mcp add --scope user freecad -- nix run /path/to/fusion-freecad#mcp-server
 ```
+
+The repo's `.mcp.json` runs the server with `uv`, which is only on `PATH` inside
+`nix develop`. To use this checkout outside it, override it for yourself:
+`claude mcp add --scope local freecad -- nix run /path/to/fusion-freecad#mcp-server`.
 
 The MCP server works with the `mcp` Python package from nixpkgs whether it is 1.x or 2.x.
 
@@ -81,12 +91,17 @@ To run FreeCAD on your working copy, set `programs.fusion-freecad.linkFusionAddo
 false;` (Home Manager keeps providing the add-ons) and link the checkout with
 `scripts/install-addon.sh --addons none`.
 
-## What to check when testing
+## Known issues
 
-1. `nix flake check` evaluates.
-2. `nix build .#mcp-server` builds and `result/bin/fusion-freecad-mcp` starts (it waits
-   on stdin; Ctrl+C).
-3. With the Home Manager module: FreeCAD shows the Fusion workbench and its add-on
-   toolbars, and *Fusion → Start MCP bridge* works.
-4. SheetMetal's unfold works (it needs `networkx` in FreeCAD's Python).
-5. Optional: `nix run .#freecad`.
+- **Touching solids can crash FreeCAD.** nixpkgs builds FreeCAD 1.1.4 against OCCT
+  7.9.3, whose point-in-solid classification segfaults when a point lies on a solid's
+  boundary: `distToShape` or `isInside` between solids that touch or overlap. The
+  `interference` tool works around it; `rib`, `measure` between touching bodies and
+  press-pull can still crash, and `uv run pytest` fails from `test_rib` on (FreeCAD dies,
+  so later tests fail too). The official FreeCAD builds aren't affected.
+- **FreeCAD Ribbon's first start can hang** (`freecad-all` only). It loads every workbench
+  to build its data, and BIM's first-use Welcome dialog opens behind its progress window
+  and doesn't take input. Before the first `freecad-all` start, open the BIM workbench
+  once in `nix run .#freecad` and close its Welcome.
+- **Screenshots** were captured mid-animation after a view change (a cut-off sliver of
+  the model). Fixed in the bridge; this was not Nix-specific.

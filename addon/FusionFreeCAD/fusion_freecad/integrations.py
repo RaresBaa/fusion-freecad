@@ -86,7 +86,11 @@ def is_installed(addon):
     if commands:
         return any(c in known for c in commands)
     import os
-    return os.path.isdir(os.path.join(App.getUserAppDataDir(), "Mod", addon.name))
+    import sys
+    if os.path.isdir(os.path.join(App.getUserAppDataDir(), "Mod", addon.name)):
+        return True
+    # Loaded with --module-path (e.g. the Nix flake's FreeCAD): on sys.path by folder name.
+    return any(os.path.basename(os.path.normpath(p)) == addon.name for p in sys.path if p)
 
 
 def installed():
