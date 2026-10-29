@@ -71,7 +71,7 @@ def _fusion_freecad_autostart():
         shortcuts.restore()
         navigation.restore()
         sketcher.restore()
-    if prefs().GetBool("AutoStartServer", False):
+    if prefs().GetBool("AutoStartServer", True):
         bridge.start()
 
 

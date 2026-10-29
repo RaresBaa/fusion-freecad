@@ -47,7 +47,7 @@ profile (its own `Mod`, settings and `AdditionalPythonPackages`). Combined with
 ```sh
 export FREECAD_USER_HOME=/tmp/fc-test FUSION_FREECAD_RPC_FILE=/tmp/fc-test/rpc.json
 scripts/install-addon.sh --addons all /tmp/fc-test/Mod
-freecad   # then Fusion workbench -> Start MCP bridge
+freecad   # the MCP bridge starts with it
 cd mcp-server && uv run python ../scripts/check-addons.py
 ```
 

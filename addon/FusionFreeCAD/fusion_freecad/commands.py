@@ -36,11 +36,11 @@ class _ToggleAutoStart:
     def GetResources(self):
         return {"MenuText": "Start MCP bridge with FreeCAD",
                 "ToolTip": "Start the MCP bridge automatically when FreeCAD launches",
-                "Checkable": prefs().GetBool("AutoStartServer", False)}
+                "Checkable": prefs().GetBool("AutoStartServer", True)}
 
     def Activated(self, checked=None):
         if checked is None:
-            checked = not prefs().GetBool("AutoStartServer", False)
+            checked = not prefs().GetBool("AutoStartServer", True)
         prefs().SetBool("AutoStartServer", bool(checked))
         App.Console.PrintMessage("Fusion FreeCAD: bridge auto-start %s\n"
                                  % ("enabled" if checked else "disabled"))

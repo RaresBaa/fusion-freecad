@@ -70,9 +70,9 @@ Requires FreeCAD 1.0 or newer (developed on 1.1) and [uv](https://docs.astral.sh
    scripts/install-addon.sh
    ```
 
-2. **Start the bridge.** Restart FreeCAD, pick the **Fusion** workbench and press the
-   green **Start MCP bridge** button. To have it start with FreeCAD, tick
-   *Fusion → Start MCP bridge with FreeCAD*.
+2. **Restart FreeCAD.** The MCP bridge starts with it (local connections only, with a
+   random token). To start it by hand instead, untick *Fusion → Start MCP bridge with
+   FreeCAD* and use the green **Start MCP bridge** button.
 
 3. **Connect Claude Code.** Opening Claude Code in this repo picks up `.mcp.json`
    automatically (approve the `freecad` server when asked). To use it from anywhere:
