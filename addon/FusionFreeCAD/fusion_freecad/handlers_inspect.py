@@ -59,6 +59,12 @@ def _solid_parts(doc):
     return out
 
 
+def _shell(shape):
+    import Part
+
+    return Part.Compound(shape.Shells) if shape.Shells else shape
+
+
 def interference(names=None, document=None, include_touching=False):
     """Pairs of parts whose solids overlap, with the overlapping volume."""
     doc = _doc(document)
@@ -81,7 +87,10 @@ def interference(names=None, document=None, include_touching=False):
                                       "max": [_round(bb.XMax), _round(bb.YMax),
                                               _round(bb.ZMax)]}
                 clashes.append(clash)
-            elif include_touching and sa.distToShape(sb)[0] < TOUCH:
+            # Shells, not solids: OCCT 7.9's distance between touching solids
+            # segfaults (seen with nixpkgs' FreeCAD 1.1.4). They don't overlap here,
+            # so the shells' distance is the solids' distance.
+            elif include_touching and _shell(sa).distToShape(_shell(sb))[0] < TOUCH:
                 touching.append({"a": a.Name, "b": b.Name})
     result = {"parts": [p.Name for p in parts], "interferences": clashes}
     if include_touching:
