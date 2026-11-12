@@ -3,6 +3,9 @@
 #  - symlinks addon/FusionFreeCAD (repo edits apply on FreeCAD's next start)
 #  - clones the add-ons listed in addons.json at their pinned commits
 #  - installs their Python packages where FreeCAD looks for them
+# From a release archive (scripts/build-release.sh) it copies instead: the addon, the
+# add-ons bundled in addons/ (no git needed) and the MCP server, to
+# ~/.local/share/fusion-freecad/mcp-server, so the extracted folder can be deleted.
 # On NixOS use the flake instead (see docs/nix.md).
 #
 #   scripts/install-addon.sh [--addons default|minimal|all|none] [--update]
@@ -18,7 +21,7 @@ while [ $# -gt 0 ]; do
         --addons) addons=$2; shift 2 ;;
         --update) update=1; shift ;;
         --uninstall) uninstall=1; shift ;;
-        -h|--help) sed -n '2,10p' "$0"; exit 0 ;;
+        -h|--help) sed -n '2,12p' "$0"; exit 0 ;;
         *) mod_dir=$1; shift ;;
     esac
 done
@@ -32,12 +35,21 @@ esac
 
 repo=$(cd "$(dirname "$0")/.." && pwd)
 source="$repo/addon/FusionFreeCAD"
+# Release archives bundle the add-ons; a git checkout clones them.
+bundled="$repo/addons"
+release=0
+[ -d "$bundled" ] && release=1
+# Marks folders this script copied (holds the add-on's commit), so they can be replaced.
+marker=".fusion-freecad-rev"
+
+case "$(uname -s)" in
+    Darwin) app_data="$HOME/Library/Application Support" ;;
+    *)      app_data="${XDG_DATA_HOME:-$HOME/.local/share}" ;;
+esac
+mcp_target="$app_data/fusion-freecad/mcp-server"
 
 if [ -z "$mod_dir" ]; then
-    case "$(uname -s)" in
-        Darwin) root="$HOME/Library/Application Support/FreeCAD" ;;
-        *)      root="${XDG_DATA_HOME:-$HOME/.local/share}/FreeCAD" ;;
-    esac
+    root="$app_data/FreeCAD"
     # Flatpak FreeCAD keeps its data in its sandbox.
     flatpak_root="$HOME/.var/app/org.freecad.FreeCAD/data/FreeCAD"
     if [ ! -d "$root" ] && [ -d "$flatpak_root" ]; then root=$flatpak_root; fi
@@ -53,15 +65,30 @@ target="$mod_dir/FusionFreeCAD"
 if [ -L "$target" ]; then
     rm "$target"
     echo "Removed existing link $target"
+elif [ -f "$target/$marker" ]; then
+    rm -rf "$target"
+    echo "Removed existing copy $target"
 elif [ -e "$target" ]; then
-    echo "$target exists and is not a symlink; remove it yourself first." >&2
+    echo "$target exists and is a real folder this script didn't make; remove it yourself first." >&2
     exit 1
 fi
-[ "$uninstall" = 1 ] && exit 0
+if [ "$uninstall" = 1 ]; then
+    if [ -d "$mcp_target" ]; then
+        rm -rf "$mcp_target"
+        echo "Removed $mcp_target"
+    fi
+    exit 0
+fi
 
 mkdir -p "$mod_dir"
-ln -s "$source" "$target"
-echo "Linked $target -> $source"
+if [ "$release" = 1 ]; then
+    cp -R "$source" "$target"
+    echo release > "$target/$marker"
+    echo "Copied Fusion FreeCAD to $target"
+else
+    ln -s "$source" "$target"
+    echo "Linked $target -> $source"
+fi
 
 # --- add-ons ------------------------------------------------------------------------
 
@@ -74,30 +101,49 @@ EOF
 )
 list=$(echo "$list" | tr -d '\r')
 
+# install_addon NAME URL REV DIR: copy the bundled add-on, or clone it at REV.
+install_addon() {
+    if [ "$release" = 1 ] && [ -d "$bundled/$1" ]; then
+        cp -R "$bundled/$1" "$4"
+        return
+    fi
+    mkdir -p "$4"
+    git -C "$4" init --quiet
+    git -C "$4" remote add origin "$2"
+    git -C "$4" fetch --quiet --depth 1 origin "$3"
+    git -C "$4" checkout --quiet --detach FETCH_HEAD
+}
+
 echo "$list" | while read -r name set url rev py; do
     case " $sets " in *" $set "*) ;; *) continue ;; esac
     dir="$mod_dir/$name"
     short=$(printf '%.7s' "$rev")
     if [ -d "$dir" ]; then
-        if [ ! -d "$dir/.git" ]; then
-            echo "  $name: already installed (not a git checkout), skipped"; continue
+        if [ -d "$dir/.git" ]; then
+            git=1
+            current=$(git -C "$dir" rev-parse HEAD)
+        elif [ -f "$dir/$marker" ]; then
+            git=0
+            current=$(tr -d '\r\n' < "$dir/$marker")
+        else
+            echo "  $name: already installed (not by this script), skipped"; continue
         fi
-        current=$(git -C "$dir" rev-parse HEAD)
         if [ "$current" = "$rev" ]; then echo "  $name: up to date"; continue; fi
         if [ "$update" != 1 ]; then
             echo "  $name: installed at $(printf '%.7s' "$current"), tested with $short (use --update to switch)"
             continue
         fi
-        git -C "$dir" fetch --quiet --depth 1 origin "$rev"
-        git -C "$dir" checkout --quiet --detach FETCH_HEAD
+        if [ "$git" = 1 ] && [ "$release" = 0 ]; then
+            git -C "$dir" fetch --quiet --depth 1 origin "$rev"
+            git -C "$dir" checkout --quiet --detach FETCH_HEAD
+        else
+            rm -rf "$dir"
+            install_addon "$name" "$url" "$rev" "$dir"
+        fi
         echo "  $name: updated to $short"
         continue
     fi
-    mkdir -p "$dir"
-    git -C "$dir" init --quiet
-    git -C "$dir" remote add origin "$url"
-    git -C "$dir" fetch --quiet --depth 1 origin "$rev"
-    git -C "$dir" checkout --quiet --detach FETCH_HEAD
+    install_addon "$name" "$url" "$rev" "$dir"
     echo "  $name: installed ($short)"
 done
 
@@ -110,7 +156,7 @@ done | sort -u)
 if [ -n "$python_packages" ]; then
     freecadcmd=$(command -v freecadcmd || command -v FreeCADCmd || true)
     if [ -z "$freecadcmd" ]; then
-        echo "freecadcmd not found; if an add-on complains, install: $python_packages" >&2
+        echo "freecadcmd not found; if an add-on complains, install:" $python_packages >&2
     else
         # Ask FreeCAD's own Python which packages it can't import yet. The file
         # needs a .py name, or freecadcmd tries to open it as a document.
@@ -142,4 +188,17 @@ EOF
     fi
 fi
 
+# --- MCP server (release only; a checkout runs it from mcp-server/) ---------------
+
+mcp_source="$repo/mcp-server"
+if [ "$release" = 1 ]; then
+    rm -rf "$mcp_target"
+    mkdir -p "$(dirname "$mcp_target")"
+    cp -R "$mcp_source" "$mcp_target"
+    mcp_source=$mcp_target
+    echo "Copied the MCP server to $mcp_target"
+fi
+
 echo "Done. Restart FreeCAD and pick the 'Fusion' workbench."
+echo "To connect Claude Code (needs uv, https://docs.astral.sh/uv/):"
+echo "  claude mcp add --scope user freecad -- uv --directory \"$mcp_source\" run fusion-freecad-mcp"

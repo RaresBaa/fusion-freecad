@@ -1,0 +1,77 @@
+# Builds the Windows zip and the Linux archive, and on a v* tag publishes them as a
+# GitHub release. Run it by hand (Actions -> Release -> Run workflow) to build both
+# without releasing; they're attached to the run as artifacts.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check the tag matches the versions in package.xml and pyproject.toml
+        run: |
+          addon=$(python3 -c 'import xml.etree.ElementTree as ET
+          print(ET.parse("addon/FusionFreeCAD/package.xml").getroot().find("{*}version").text.strip())')
+          server=$(python3 -c 'import tomllib
+          print(tomllib.load(open("mcp-server/pyproject.toml", "rb"))["project"]["version"])')
+          echo "package.xml: $addon, pyproject.toml: $server"
+          if [ "$addon" != "$server" ]; then
+            echo "::error::package.xml ($addon) and pyproject.toml ($server) disagree"; exit 1
+          fi
+          if [ "$GITHUB_REF_TYPE" = tag ] && [ "$GITHUB_REF_NAME" != "v$addon" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME doesn't match version $addon"; exit 1
+          fi
+
+  windows:
+    needs: version
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the Windows zip
+        shell: powershell
+        run: scripts\build-release.ps1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: dist/*.zip
+          if-no-files-found: error
+
+  linux:
+    needs: version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the Linux archive
+        run: sh scripts/build-release.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux
+          path: dist/*.tar.gz
+          if-no-files-found: error
+
+  release:
+    if: github.ref_type == 'tag'
+    needs: [windows, linux]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/* \
+            --repo "$GITHUB_REPOSITORY" --title "$GITHUB_REF_NAME" \
+            --generate-notes --verify-tag

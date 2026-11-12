@@ -54,22 +54,36 @@ cd mcp-server && uv run python ../scripts/check-addons.py
 A fresh profile shows FreeCAD's first-run dialogs (and Ribbon's, if installed); they
 block startup scripts until answered.
 
-## Windows release
+## Releases
 
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts\build-release.ps1
-```
+GitHub Actions builds and publishes them (`.github/workflows/release.yml`):
 
-builds `dist\fusion-freecad-<version>-windows.zip` from the committed `HEAD` (version
-from `package.xml`; bump it, and `mcp-server/pyproject.toml`, first). It bundles every
-add-on in `addons.json` at its pinned commit, so installing needs no git. Upload the
-zip to a GitHub release by hand; there is no CI.
+1. Bump the version in `addon/FusionFreeCAD/package.xml` and `mcp-server/pyproject.toml`
+   (the workflow fails if they differ), commit and push.
+2. Optionally try it first: *Actions → Release → Run workflow* builds both files and
+   attaches them to the run, without releasing.
+3. `git tag v<version> && git push origin v<version>`. The workflow checks the tag
+   matches the version, builds both files and creates the release with notes generated
+   from the commits since the last tag.
 
-`install-addon.ps1` notices the bundled `addons\` folder and copies instead of linking:
-the addon into `Mod\FusionFreeCAD`, the add-ons into `Mod`, the MCP server into
-`%LOCALAPPDATA%\fusion-freecad\mcp-server`. Copied folders get a `.fusion-freecad-rev`
-file (the commit), so a later install can replace them; `-Uninstall` removes the addon
-and the MCP server copy.
+The two builds also run locally (output in `dist/`):
+
+| Script | Builds |
+|---|---|
+| `scripts/build-release.ps1` (Windows) | `fusion-freecad-<version>-windows.zip`, with `Install.cmd` |
+| `scripts/build-release.sh` (Linux, or Git Bash with a real `python3`) | `fusion-freecad-<version>-linux.tar.gz`, with `install.sh` |
+
+Both pack the committed `HEAD` (not uncommitted edits), LICENSE, and every add-on in
+`addons.json` at its pinned commit, so installing needs no git.
+
+The install scripts notice the bundled `addons/` folder and copy instead of linking: the
+addon into `Mod/FusionFreeCAD`, the add-ons into `Mod`, the MCP server into
+`%LOCALAPPDATA%\fusion-freecad\mcp-server` (Windows) or
+`~/.local/share/fusion-freecad/mcp-server` (Linux; `~/Library/Application Support/...`
+on macOS). Copied folders get a `.fusion-freecad-rev` file (the commit), so a later
+install can replace them; `-Uninstall` / `--uninstall` removes the addon and the MCP
+server copy. The `.sh` scripts must stay executable in git
+(`git update-index --chmod=+x`), since the archive keeps file modes.
 
 ## Gotchas
 

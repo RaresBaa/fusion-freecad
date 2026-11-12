@@ -104,7 +104,8 @@
 
 ## 8. Distribution
 
-- [x] Distributed from GitHub: NixOS through the flake, Windows through a release zip
-      built by hand with `scripts/build-release.ps1` and uploaded to a GitHub release
-      (no CI for now). Not in the Addon Manager or on PyPI.
+- [x] Distributed from GitHub: NixOS through the flake, Windows and Linux through
+      release archives that GitHub Actions builds and publishes on a `v*` tag. Not in
+      the Addon Manager or on PyPI.
+- [ ] CI running the tests on each push (needs a headless FreeCAD on the runner)
 - [x] License: LGPL-2.1-or-later, matching FreeCAD

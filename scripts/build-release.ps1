@@ -8,6 +8,8 @@
 # Needs git and Windows 10's tar.
 
 $ErrorActionPreference = "Stop"
+# Windows' own tar (bsdtar) makes zips; a GNU tar from Git on the PATH can't.
+$tar = Join-Path $env:SystemRoot "System32\tar.exe"
 $repo = Resolve-Path (Join-Path $PSScriptRoot "..")
 
 $version = ([xml](Get-Content (Join-Path $repo "addon\FusionFreeCAD\package.xml") -Raw)).package.version
@@ -28,9 +30,9 @@ New-Item -ItemType Directory -Force $staging | Out-Null
 $tarball = Join-Path $dist "$name.tar"
 git -C $repo archive --format=tar -o $tarball HEAD `
     addon mcp-server/src mcp-server/pyproject.toml mcp-server/uv.lock mcp-server/README.md `
-    scripts/install-addon.ps1 addons.json README.md
+    scripts/install-addon.ps1 addons.json README.md LICENSE
 if ($LASTEXITCODE -ne 0) { throw "git archive failed" }
-tar -x -f $tarball -C $staging
+& $tar -x -f $tarball -C $staging
 Remove-Item $tarball
 
 Set-Content -Path (Join-Path $staging "Install.cmd") -Encoding ascii -Value @'
@@ -60,7 +62,7 @@ foreach ($addon in $manifest.addons) {
 
 # --- zip ---------------------------------------------------------------------------
 
-tar -a -c -f $zip -C $dist $name
+& $tar -a -c -f $zip -C $dist $name
 if ($LASTEXITCODE -ne 0) { throw "tar failed" }
 Remove-Item -Recurse -Force $staging
 $size = [math]::Round((Get-Item $zip).Length / 1MB, 1)

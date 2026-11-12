@@ -1,5 +1,7 @@
 # fusion-freecad
 
+[![Latest release](https://img.shields.io/github/v/release/RaresBaa/fusion-freecad?sort=semver&label=release)](https://github.com/RaresBaa/fusion-freecad/releases/latest)
+
 A FreeCAD addon that brings a Fusion 360-style workflow to FreeCAD on Linux and
 Windows, plus an MCP server so AI agents such as Claude Code can model parts in a
 live FreeCAD session.
@@ -44,22 +46,30 @@ What's next is on the [roadmap](docs/roadmap.md).
 | `addon/FusionFreeCAD/` | The FreeCAD addon: the **Fusion** workbench and the RPC bridge that runs inside FreeCAD |
 | `mcp-server/` | `fusion-freecad-mcp`, the MCP server agents talk to; it forwards calls to the bridge |
 | `addons.json` | The add-ons we integrate with, pinned to tested commits |
-| `scripts/` | Install scripts, and `check-addons.py` to test the add-on integrations |
-| `flake.nix` | NixOS / Home Manager packaging ([docs/nix.md](docs/nix.md), untested) |
+| `scripts/` | Install and release scripts, and `check-addons.py` to test the add-on integrations |
+| `flake.nix` | NixOS / Home Manager packaging ([docs/nix.md](docs/nix.md)) |
 | `docs/` | [Architecture](docs/architecture.md), [MCP tools](docs/mcp-tools.md), [add-ons](docs/addons.md), [Nix](docs/nix.md), [development](docs/development.md), [roadmap](docs/roadmap.md) |
 
 ## Quick start
 
 Requires FreeCAD 1.0 or newer (developed on 1.1) and [uv](https://docs.astral.sh/uv/).
 
-1. **Install the addon** (links it into FreeCAD's Mod folder, so repo edits apply on
-   restart, and installs the [add-ons](docs/addons.md) it uses at tested versions;
-   `-Addons minimal|all|none` / `--addons ...` to choose). On NixOS see [docs/nix.md](docs/nix.md).
+1. **Install the addon** with the [add-ons](docs/addons.md) it uses, at tested versions
+   (`-Addons minimal|all|none` / `--addons ...` to choose). On NixOS see
+   [docs/nix.md](docs/nix.md).
 
-   On Windows without git, download `fusion-freecad-<version>-windows.zip` from the
-   GitHub releases, extract it and double-click `Install.cmd`. It copies everything
-   (add-ons included) into FreeCAD and prints the `claude mcp add` command for step 3,
-   so the extracted folder can be deleted afterwards. Run it from a newer zip to update.
+   **From a release** (no git needed): download the file for your system from the
+   [latest release](https://github.com/RaresBaa/fusion-freecad/releases/latest) and
+   extract it.
+   - Windows: `fusion-freecad-<version>-windows.zip`, double-click `Install.cmd`.
+   - Linux: `fusion-freecad-<version>-linux.tar.gz`, run `./install.sh`.
+
+   It copies everything into FreeCAD and prints the `claude mcp add` command for
+   step 3, so the extracted folder can be deleted afterwards. Run it from a newer
+   release to update.
+
+   **From a git checkout** (links the addon into FreeCAD's Mod folder, so repo edits
+   apply on restart):
 
    ```powershell
    # Windows
